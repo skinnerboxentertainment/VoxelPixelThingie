@@ -73,6 +73,32 @@ test("move keeps the id, relinks at the new cell, and re-exposes the old neighbo
   assert.throws(() => g.move(mid, [0, 0, 0]), /occupied/);
 });
 
+test("cameraMoved visits only awake bits and agrees with a full evaluate", () => {
+  const g = Grid.fill(4, 4, 4, { emission: RED });
+  const camA = { position: [20, 5, 5] as const };
+  const camB = { position: [-20, 5, 5] as const };
+  g.evaluate(camA);
+  assert.equal(g.awake.length, 64 - 8, "4^3 has an enclosed 2^3 core");
+  const flags = (grid: Grid) => [...grid.bits()].map((b) => b.nodes.map((n) => n.renderEnabled));
+
+  g.cameraMoved(camB);
+  const fast = flags(g);
+  const ref = Grid.fill(4, 4, 4, { emission: RED });
+  ref.evaluate(camB);
+  assert.deepEqual(fast, flags(ref), "awake-only pass equals full pass");
+
+  // Structural change: the next cameraMoved must fall back to a full pass.
+  g.remove(g.at(1, 1, 1)!);
+  g.cameraMoved(camA);
+  // The removed core bit's three face-adjacent core neighbors lose a face link and wake.
+  // Its edge- and vertex-adjacent core neighbors keep all six face links and stay asleep.
+  assert.equal(g.awake.length, 64 - 8 + 3);
+  const ref2 = Grid.fill(4, 4, 4, { emission: RED });
+  ref2.remove(ref2.at(1, 1, 1)!);
+  ref2.evaluate(camA);
+  assert.deepEqual(flags(g), flags(ref2));
+});
+
 test("setPosition refuses while linked", () => {
   const g = Grid.fill(2, 1, 1);
   assert.throws(() => g.at(0, 0, 0)!.setPosition([7, 7, 7]), /unlink/);
