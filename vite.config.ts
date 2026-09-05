@@ -14,6 +14,7 @@ export default defineConfig({
       input: {
         index: resolve(demo, "index.html"),
         canvas: resolve(demo, "canvas/index.html"),
+        three: resolve(demo, "three/index.html"),
       },
     },
   },

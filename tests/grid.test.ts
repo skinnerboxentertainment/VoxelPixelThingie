@@ -28,6 +28,14 @@ test("renderList length equals the count of enabled nodes", () => {
     if (b.renderCycle) enabled += b.nodes.filter((n) => n.renderEnabled).length;
   const list = renderList(g.bits());
   assert.equal(list.length, enabled);
+  for (const b of g.bits()) {
+    const on = b.nodes.filter((n) => n.renderEnabled).map((n) => n.slot);
+    assert.ok(
+      on.every((s) => b.open.includes(s)),
+      "every enabled slot is an open slot",
+    );
+  }
+  assert.equal(renderList(g.awake).length, enabled, "awake bits carry every enabled node");
   assert.ok(list.every((r) => r.emission.color === 0xff0000));
   const corner = list.filter((r) => r.bit.key === "0,0,0").map((r) => r.slot);
   assert.deepEqual(corner, [0, 2, 4, 6, 10, 14, 18]);
