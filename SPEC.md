@@ -54,14 +54,17 @@ A bit counts as 27 addressable units: itself plus its 26 nodes.
 
 ### 3.2 Node contents
 
-Every node, regardless of type, can be controlled to emit. Emission payloads
-include, but are not limited to:
+Every node, regardless of type, can be controlled to emit. An emission is a
+fixed struct of three optional fields; a field left undefined means "not
+emitting that."
 
-- color
-- light (intensity)
-- information (arbitrary data)
+| Field | Type | Meaning |
+|-------|------|---------|
+| `color` | number, 24-bit RGB | what the node shows |
+| `light` | number, intensity | how strongly it glows |
+| `data` | any | what it says to the network |
 
-The exact payload schema is open (see §8).
+A node with all three undefined is silent (§8.2).
 
 ## 4. Ownership model: private nodes plus explicit links
 
@@ -283,7 +286,7 @@ disables the whole cycle.
 | Silence | node | The node emits nothing (no color, no light, no data bound for the screen). |
 | Occlusion by link | node | The node has a link. A linked face, edge, or vertex is pressed against a neighbor and cannot be seen. |
 | Full enclosure | bit | All 6 faces are linked. The bit is interior and leaves the render cycle. |
-| Back-facing | node | The node's outward normal points away from the camera. |
+| Back-facing | node | The cosine between the node's outward direction and the direction to the camera is below −ε, with ε = 1e-4. A node exactly edge-on stays enabled; the renderer's own back-face culling makes the final cut. |
 | Frustum | bit | The bit's bounding cube is entirely outside the view frustum. |
 | Screen coverage | bit | The bit projects to less than one pixel and is not the nearest such bit. |
 
@@ -367,13 +370,11 @@ provenance is the log, not `data`.
 ## 10. Open questions
 
 1. What fields does a bit hold beyond position, presence, and color?
-2. What is the emission payload schema for a node? Is it one field with a
-   type tag, or a fixed struct of color, intensity, and data?
-3. Do links carry state in v0.2, and if so which fields?
-4. Rendering: real 3D or an isometric 2D projection of pixels?
-5. Does a hidden face (one with a link) emit into the network only, or can it
+2. Do links carry state in v0.2, and if so which fields?
+3. Rendering: real 3D or an isometric 2D projection of pixels?
+4. Does a hidden face (one with a link) emit into the network only, or can it
    also affect rendering, for example as light bleed?
-6. What retention and compaction policy should a recording sink apply?
+5. What retention and compaction policy should a recording sink apply?
 
 ## 11. Decisions log
 
@@ -386,3 +387,5 @@ provenance is the log, not `data`.
 | 2026-09-05 | A VPB self-tests its components and disables its own render cycle or individual nodes to save processing. Culling is the bit's responsibility, not a global pass (§8). |
 | 2026-09-05 | The VPB is a spime: stable container-minted id, append-only event log held by a sink beside the bit, never read by the render path (§9, ADR 0005). Closes former open question 6. |
 | 2026-09-05 | Event set gains `destroyed` so a log can replay removal; `created` carries color. Presence toggles are container-mediated (§9.2–9.3). |
+| 2026-09-05 | Emission is a fixed struct of optional color, light, data (§3.2). Closes former open question 2. |
+| 2026-09-05 | Back-facing test is inclusive at the plane with ε = 1e-4 on the cosine (§8.2). |
