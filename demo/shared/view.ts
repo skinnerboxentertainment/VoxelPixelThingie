@@ -80,6 +80,7 @@ export function modelCamera(v: View, b: Basis): Camera {
       v.target[1] - b.forward[1] * far,
       v.target[2] - b.forward[2] * far,
     ],
+    towardCamera: [-b.forward[0], -b.forward[1], -b.forward[2]],
   };
 }
 

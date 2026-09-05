@@ -143,6 +143,8 @@ function frameScene(): void {
 
 const frameTimes: number[] = [];
 let lastFrame = performance.now();
+/** Every animation frame, unfiltered. Tests use this to see that the loop runs. */
+let frameCount = 0;
 function frameStats() {
   const s = [...frameTimes].sort((a, b) => a - b);
   const at = (p: number) => s[Math.min(s.length - 1, Math.floor(s.length * p))] ?? 0;
@@ -213,6 +215,7 @@ function tick(): void {
   const now = performance.now();
   const dt = now - lastFrame;
   lastFrame = now;
+  frameCount++;
   // Drop stalls (tab hidden, scene load) so the stats describe steady frames.
   if (dt < 250) {
     frameTimes.push(dt);
@@ -294,6 +297,7 @@ resetButton.addEventListener("click", () => loadSize(size));
     return { ...cnt, nodes: items.length, bits: grid.size, awake: grid.awake.length };
   },
   frameStats,
+  frameCount: () => frameCount,
   removeCenterFacingBit: () => {
     // Deterministic removal for tests: the first bit in the face layer.
     const bit = faces.bits[0];

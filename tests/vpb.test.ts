@@ -131,6 +131,19 @@ test("back-facing is inclusive at the plane and exclusive just behind it", () =>
   assert.equal(b.node(3).renderEnabled, true, "camera on the node itself counts as facing");
 });
 
+test("orthographic camera down Z: exactly the nine +Z-side nodes face, edge-on nodes do not", () => {
+  const b = lit([0, 0, 0]);
+  b.evaluate({ position: [0, 0, 1e4], towardCamera: [0, 0, 1] });
+  const on = b.nodes.filter((n) => n.renderEnabled).map((n) => n.slot);
+  // +Z face (5), its four edges (8, 9, 12, 13), its four vertices (22..25).
+  assert.deepEqual(on, [5, 8, 9, 12, 13, 22, 23, 24, 25]);
+  // The same view as a distant point instead of a direction keeps edge-on faces on.
+  const p = lit([0, 0, 0]);
+  p.evaluate({ position: [0, 0, 1e4] });
+  const faces = p.nodes.filter((n) => n.kind === "face" && n.renderEnabled).length;
+  assert.ok(faces >= 5, "point camera: edge-on side faces stay enabled by the inclusive rule");
+});
+
 test("camera tests are cached until onCameraMoved", () => {
   const b = lit([0, 0, 0]);
   const cam: Camera = { position: [10, 0, 0] };
