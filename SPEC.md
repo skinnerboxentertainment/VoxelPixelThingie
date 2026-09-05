@@ -1,0 +1,334 @@
+# VoxelPixelThingie — Core Model Specification
+
+Status: Draft v0.2
+Date: 2026-09-05
+Author: Oscar
+
+## 1. Purpose
+
+This document defines the atomic data model for VoxelPixelThingie: what a
+VoxelPixelBit is, what it contains, how its parts are addressed, and how
+neighboring bits relate to each other. It records decisions already made and
+lists questions still open. It does not cover the renderer itself, persistence, or input, but it does
+define the bit's responsibility toward the renderer (§8).
+
+## 2. Vocabulary
+
+| Term | Meaning |
+|------|---------|
+| VoxelPixelBit (bit, VPB) | The atomic unit. A unit cube occupying one grid cell. Nothing is smaller. |
+| Node | Any addressable, emitting element owned by a bit: a face, an edge, or a vertex. |
+| Face | One of the 6 square sides of a bit. Emits over an area. |
+| Edge | One of the 12 line segments where two faces of a bit meet. Emits along a line. |
+| Vertex | One of the 8 corner points of a bit. Emits from a point. |
+| Link | An explicit record that two nodes belonging to different bits are in contact. |
+| Voxel cube (cube) | A grid array of bits, for example 8×8×8. |
+| Network | The graph formed by all nodes and all links in a cube. |
+
+## 3. The VoxelPixelBit
+
+A bit is a cube. It has:
+
+- A position in the grid: integer `(x, y, z)`.
+- A presence state: present or absent. An absent bit occupies no cell and
+  has no links.
+- 26 privately owned nodes: 6 faces, 12 edges, 8 vertices.
+- Per-bit state, at minimum a color. Further fields are open (see §8).
+
+A bit counts as 27 addressable units: itself plus its 26 nodes.
+
+### 3.1 Node counts
+
+| Node type | Count per bit | Emission geometry |
+|-----------|---------------|-------------------|
+| Face | 6 | area |
+| Edge | 12 | line |
+| Vertex | 8 | point |
+| Total | 26 | |
+
+### 3.2 Node contents
+
+Every node, regardless of type, can be controlled to emit. Emission payloads
+include, but are not limited to:
+
+- color
+- light (intensity)
+- information (arbitrary data)
+
+The exact payload schema is open (see §8).
+
+## 4. Ownership model: private nodes plus explicit links
+
+Decision: the hybrid model.
+
+### 4.1 Private nodes
+
+Every node belongs to exactly one bit. When two bits are adjacent, each keeps
+its own face on the shared boundary. The two faces are distinct nodes with
+distinct state. The same holds for edges and vertices at the boundary.
+
+Consequences:
+
+- A bit is self-contained. It can be created, destroyed, moved, or serialized
+  without altering any other bit's nodes.
+- Opposing emission across a boundary is legal. One face may be red while the
+  face pressed against it is blue or dark.
+- Node addressing needs no neighbor lookup.
+- Hidden nodes (those facing an adjacent bit) are still real nodes with real
+  state. Whether they render is a rendering decision, not a model one.
+- Bits update independently. No shared state means no write contention.
+
+### 4.2 Explicit links
+
+Adjacency is recorded as links between nodes of different bits. A link states
+that two nodes are in contact. Links are the network's edges in graph terms.
+
+Link fan-out by node type:
+
+| Node type | Bits that can meet there | Max links per node |
+|-----------|--------------------------|--------------------|
+| Face | 2 | 1 |
+| Edge | 4 | 3 |
+| Vertex | 8 | 7 |
+
+Links carry no state of their own in v0.1. Adding link state (signal
+strength, blocked flag, directionality) is anticipated and permitted by this
+model.
+
+### 4.3 Why hybrid
+
+Shared nodes make a true lattice and are smaller, but cannot express opposing
+emission and make bit removal reassign co-owned nodes. Private nodes keep bits
+portable and independent but lose adjacency. The hybrid keeps both behaviors
+at the cost of the most memory. The trade was accepted deliberately.
+
+## 5. Addressing
+
+### 5.1 Grains
+
+Nodes are addressable at three grains:
+
+1. Individually: one node.
+2. Collectively: an arbitrary set of nodes.
+3. As an array pattern: a rule that selects nodes, for example "all +Y faces
+   in layer 3" or "every vertex on the outer shell."
+
+### 5.2 Node address
+
+A node is identified by `(bit, slot)` where `bit` is the bit's identity and
+`slot` is a local index in `0..25`.
+
+| Slot range | Node type | Count |
+|------------|-----------|-------|
+| 0–5 | face | 6 |
+| 6–17 | edge | 12 |
+| 18–25 | vertex | 8 |
+
+For a bit on a dense grid, `bit` can be the linear cell index
+`x + y·W + z·W·H`, giving a flat node index of `bitIndex · 26 + slot`.
+
+### 5.3 Sign convention
+
+Every ordering below follows one rule. Each axis of a bit has a negative side
+and a positive side. Negative encodes as `0`, positive as `1`. Axes are
+ordered `X, Y, Z`, and when several axes are packed into one number, X is the
+least significant bit.
+
+### 5.4 Face slots (0–5)
+
+`slot = 2 · axis + sign`, where `axis` is X=0, Y=1, Z=2 and `sign` is 0 for
+negative, 1 for positive.
+
+| Slot | Face |
+|------|------|
+| 0 | −X |
+| 1 | +X |
+| 2 | −Y |
+| 3 | +Y |
+| 4 | −Z |
+| 5 | +Z |
+
+### 5.5 Edge slots (6–17)
+
+An edge runs parallel to one axis and sits at a fixed sign on each of the
+other two. Edges are grouped by the axis they run along, and within a group
+by the signs of the remaining two axes, lower axis first as the low bit.
+
+`slot = 6 + 4 · axis + (signA + 2 · signB)`, where `axis` is the axis the
+edge runs along and `(A, B)` are the other two axes in `X, Y, Z` order.
+
+| Slot | Runs along | Position | Endpoints (vertex slots) |
+|------|------------|----------|--------------------------|
+| 6 | X | −Y −Z | 18, 19 |
+| 7 | X | +Y −Z | 20, 21 |
+| 8 | X | −Y +Z | 22, 23 |
+| 9 | X | +Y +Z | 24, 25 |
+| 10 | Y | −X −Z | 18, 20 |
+| 11 | Y | +X −Z | 19, 21 |
+| 12 | Y | −X +Z | 22, 24 |
+| 13 | Y | +X +Z | 23, 25 |
+| 14 | Z | −X −Y | 18, 22 |
+| 15 | Z | +X −Y | 19, 23 |
+| 16 | Z | −X +Y | 20, 24 |
+| 17 | Z | +X +Y | 21, 25 |
+
+### 5.6 Vertex slots (18–25)
+
+`slot = 18 + (signX + 2 · signY + 4 · signZ)`.
+
+| Slot | Vertex |
+|------|--------|
+| 18 | −X −Y −Z |
+| 19 | +X −Y −Z |
+| 20 | −X +Y −Z |
+| 21 | +X +Y −Z |
+| 22 | −X −Y +Z |
+| 23 | +X −Y +Z |
+| 24 | −X +Y +Z |
+| 25 | +X +Y +Z |
+
+### 5.7 Intra-bit incidence
+
+Fixed by geometry, listed here so implementations agree.
+
+| Face | Edges | Vertices |
+|------|-------|----------|
+| 0 (−X) | 10, 12, 14, 16 | 18, 20, 22, 24 |
+| 1 (+X) | 11, 13, 15, 17 | 19, 21, 23, 25 |
+| 2 (−Y) | 6, 8, 14, 15 | 18, 19, 22, 23 |
+| 3 (+Y) | 7, 9, 16, 17 | 20, 21, 24, 25 |
+| 4 (−Z) | 6, 7, 10, 11 | 18, 19, 20, 21 |
+| 5 (+Z) | 8, 9, 12, 13 | 22, 23, 24, 25 |
+
+## 6. The cube as a network
+
+A voxel cube is a graph:
+
+- Vertices of the graph: every node of every present bit.
+- Edges of the graph: every link.
+- Each bit is a subgraph of 26 nodes. Intra-bit structure (which face borders
+  which edge, which edge ends at which vertex) is fixed by geometry and need
+  not be stored.
+
+Size, dense 8×8×8 for reference:
+
+| Quantity | Count |
+|----------|-------|
+| Bits | 512 |
+| Nodes | 13,312 |
+| Faces | 3,072 |
+| Visible faces on a solid cube | 384 |
+
+## 7. Derivation of links
+
+On an axis-aligned grid, links are fully determined by bit positions.
+
+Partner rule: take a node and a neighbor bit offset by `(dx, dy, dz)` with
+each component in `{−1, 0, +1}`. The node links to the neighbor's node of the
+same type whose sign is flipped on every axis where the offset is nonzero,
+and unchanged on every axis where it is zero. The node's own sign must match
+the offset direction on each nonzero axis, otherwise no link exists.
+
+Examples:
+
+- Face `+X` (slot 1) at offset `(+1,0,0)` links to the neighbor's `−X`
+  (slot 0).
+- Edge along X at `+Y +Z` (slot 9) links to three neighbors: offset
+  `(0,+1,0)` slot 8 (`−Y +Z`), offset `(0,0,+1)` slot 7 (`+Y −Z`), and offset
+  `(0,+1,+1)` slot 6 (`−Y −Z`).
+- Vertex `+X +Y +Z` (slot 25) links to seven neighbors, one for each nonzero
+  offset with all components in `{0,+1}`, at the vertex with the
+  corresponding bits flipped.
+
+Therefore the link table may be computed on demand rather than stored, as
+long as all bits sit on the grid. Storing links becomes necessary when either
+of the following holds:
+
+- Bits may sit off-grid or float apart.
+- Links carry their own state.
+
+v0.1 permits either implementation. The model is the same.
+
+## 8. Self-optimizing render cycle
+
+A VPB is responsible for its own render cost. It does not wait for a global
+culling pass. Each bit continuously tests its own components and disables
+whatever it can prove will not contribute to the frame.
+
+### 8.1 Principle
+
+Every node carries a render-enabled flag, and the bit as a whole carries a
+render-cycle flag. Both default to on. The bit's job is to turn them off
+whenever it can and turn them back on the moment the reason lapses.
+
+Example: an array of VPBs forming a wall in a 3D scene. As the camera moves
+around the wall, each bit on its own decides which of its 26 nodes are worth
+drawing this frame, and bits that cannot be seen at all drop out of the
+render cycle entirely, without the scene telling them to.
+
+### 8.2 Tests a bit runs on itself
+
+Listed from cheapest to most expensive. A bit stops at the first test that
+disables the whole cycle.
+
+| Test | Scope | Disables when |
+|------|-------|---------------|
+| Presence | bit | The bit is absent. |
+| Silence | node | The node emits nothing (no color, no light, no data bound for the screen). |
+| Occlusion by link | node | The node has a link. A linked face, edge, or vertex is pressed against a neighbor and cannot be seen. |
+| Full enclosure | bit | All 6 faces are linked. The bit is interior and leaves the render cycle. |
+| Back-facing | node | The node's outward normal points away from the camera. |
+| Frustum | bit | The bit's bounding cube is entirely outside the view frustum. |
+| Screen coverage | bit | The bit projects to less than one pixel and is not the nearest such bit. |
+
+The link table makes the occlusion tests free. A node's link count is already
+known; no geometry query is needed.
+
+### 8.3 When tests re-run
+
+Tests are event-driven, not per-frame by default. A bit re-evaluates when:
+
+- Its own state changes (presence, emission on any node).
+- A link is added or removed on any of its nodes (a neighbor appeared or
+  vanished).
+- The camera moves, for the camera-dependent tests only (back-facing,
+  frustum, screen coverage).
+
+Link-dependent results are cached until a link changes. Camera-dependent
+results are cached until the camera changes. A bit with all six faces linked
+never runs a camera test at all.
+
+### 8.4 Emission versus rendering
+
+Disabling render does not disable emission. A hidden face still holds its
+state and still emits into the network through its link. Render-off means
+"do not draw," not "do not exist." This preserves open question 5 in §9.
+
+### 8.5 Scale note
+
+Per-bit self-testing is cheap for hundreds or thousands of bits. Beyond that,
+the test itself becomes the cost, and bits will need to be grouped so that a
+parent can answer frustum and coverage questions for many bits at once. This
+is anticipated and not designed here. The principle stands either way: the
+decision belongs to the bit, and a parent only short-circuits it.
+
+## 9. Open questions
+
+1. What fields does a bit hold beyond position, presence, and color?
+2. What is the emission payload schema for a node? Is it one field with a
+   type tag, or a fixed struct of color, intensity, and data?
+3. Do links carry state in v0.2, and if so which fields?
+4. Rendering: real 3D or an isometric 2D projection of pixels?
+5. Does a hidden face (one with a link) emit into the network only, or can it
+   also affect rendering, for example as light bleed?
+6. Is "bit" identity the grid cell, or a stable id that survives movement?
+
+## 10. Decisions log
+
+| Date | Decision |
+|------|----------|
+| 2026-09-05 | VoxelPixelBit is the atomic unit. |
+| 2026-09-05 | Every face, edge, and vertex is individually, collectively, and array-addressable, and can emit. |
+| 2026-09-05 | Nodes are private to their bit. Adjacency is recorded as explicit links (hybrid model). |
+| 2026-09-05 | Slot ordering fixed for faces, edges, and vertices under one sign convention (§5.3–5.6). Face order changed from `+X,−X,…` to `−X,+X,…` for consistency. |
+| 2026-09-05 | A VPB self-tests its components and disables its own render cycle or individual nodes to save processing. Culling is the bit's responsibility, not a global pass (§8). |
