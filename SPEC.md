@@ -1,6 +1,6 @@
 # VoxelPixelThingie — Core Model Specification
 
-Status: Draft v0.2
+Status: Draft v0.3
 Date: 2026-09-05
 Author: Oscar
 
@@ -24,12 +24,18 @@ define the bit's responsibility toward the renderer (§8).
 | Link | An explicit record that two nodes belonging to different bits are in contact. |
 | Voxel cube (cube) | A grid array of bits, for example 8×8×8. |
 | Network | The graph formed by all nodes and all links in a cube. |
+| Container | The owner of a set of bits. Mints ids, links neighbors, supplies the event sink. The `Grid` is one container. |
+| Event | One recorded change to a bit. See §9. |
+| Spime | Sterling's term for an object whose identity and full history are knowable through its data. The VPB is designed as one (ADR 0005). |
 
 ## 3. The VoxelPixelBit
 
 A bit is a cube. It has:
 
-- A position in the grid: integer `(x, y, z)`.
+- An identity: an immutable, opaque `id` minted by its container at
+  creation. Two bits with the same id are the same bit. See §9.
+- A position in the grid: integer `(x, y, z)`. Position is a property, not
+  the identity; a bit may move.
 - A presence state: present or absent. An absent bit occupies no cell and
   has no links.
 - 26 privately owned nodes: 6 faces, 12 edges, 8 vertices.
@@ -312,7 +318,50 @@ parent can answer frustum and coverage questions for many bits at once. This
 is anticipated and not designed here. The principle stands either way: the
 decision belongs to the bit, and a parent only short-circuits it.
 
-## 9. Open questions
+## 9. Identity and history
+
+Adopted from ADR 0005: the VPB is a spime. Its data trail is its primary
+existence; any rendering, including a physical one, is one expression of it.
+
+### 9.1 Identity
+
+Every bit carries an immutable `id`. The container mints it; the bit never
+mints its own. Ids are opaque strings with no meaning to the model. The
+grid cell is a mutable property. Serialization, movement, and re-expression
+in another renderer preserve the id.
+
+### 9.2 Events
+
+Every change to a bit is an event. Events are appended, never edited, to a
+log keyed by bit id. Each carries a sequence number and a timestamp, both
+supplied by the container.
+
+| Event | Payload |
+|-------|---------|
+| `created` | position, initial emission |
+| `presence` | present or absent |
+| `emitted` | slot, emission |
+| `linked` | neighbor id, slot, partner slot, offset |
+| `unlinked` | neighbor id, slot |
+| `moved` | from, to |
+| `annotated` | free-form key and value |
+
+The bit's fields are a projection of its log. Folding a bit's events in
+order from `created` reproduces its current state.
+
+### 9.3 Where the log lives
+
+Bits emit events to a sink supplied by the container. The default sink
+discards. Recording, retention, compaction, and replay are sink concerns
+and are not specified in v0.3.
+
+### 9.4 What the log does not touch
+
+The self-test in §8 reads current state only. No part of the render path
+consults the log. `Emission.data` is what a node says to the network;
+provenance is the log, not `data`.
+
+## 10. Open questions
 
 1. What fields does a bit hold beyond position, presence, and color?
 2. What is the emission payload schema for a node? Is it one field with a
@@ -321,9 +370,9 @@ decision belongs to the bit, and a parent only short-circuits it.
 4. Rendering: real 3D or an isometric 2D projection of pixels?
 5. Does a hidden face (one with a link) emit into the network only, or can it
    also affect rendering, for example as light bleed?
-6. Is "bit" identity the grid cell, or a stable id that survives movement?
+6. What retention and compaction policy should a recording sink apply?
 
-## 10. Decisions log
+## 11. Decisions log
 
 | Date | Decision |
 |------|----------|
@@ -332,3 +381,4 @@ decision belongs to the bit, and a parent only short-circuits it.
 | 2026-09-05 | Nodes are private to their bit. Adjacency is recorded as explicit links (hybrid model). |
 | 2026-09-05 | Slot ordering fixed for faces, edges, and vertices under one sign convention (§5.3–5.6). Face order changed from `+X,−X,…` to `−X,+X,…` for consistency. |
 | 2026-09-05 | A VPB self-tests its components and disables its own render cycle or individual nodes to save processing. Culling is the bit's responsibility, not a global pass (§8). |
+| 2026-09-05 | The VPB is a spime: stable container-minted id, append-only event log held by a sink beside the bit, never read by the render path (§9, ADR 0005). Closes former open question 6. |
