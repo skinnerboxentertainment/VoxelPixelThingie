@@ -72,6 +72,8 @@ export interface VPBOptions {
 }
 
 export class VoxelPixelBit {
+  /** Immutable identity, minted by the container (SPEC.md §9.1, ADR 0005). */
+  readonly id: string;
   position: [number, number, number];
   color: number;
   readonly nodes: readonly VPBNode[];
@@ -86,7 +88,9 @@ export class VoxelPixelBit {
   #staticPass: boolean[] = new Array(NODE_COUNT).fill(true);
   #facingPass: boolean[] = new Array(NODE_COUNT).fill(true);
 
-  constructor(position: Vec3, opts: VPBOptions = {}) {
+  constructor(id: string, position: Vec3, opts: VPBOptions = {}) {
+    if (!id) throw new RangeError("a bit needs an id; use a Grid to mint one");
+    this.id = id;
     this.position = [position[0], position[1], position[2]];
     this.#present = opts.present ?? true;
     this.color = opts.color ?? 0xffffff;
@@ -101,9 +105,25 @@ export class VoxelPixelBit {
 
   // ---------------------------------------------------------------- identity & state
 
-  /** Grid-cell identity. Open question 6 (§9) asks whether this should be a stable id instead. */
-  get id(): string {
-    return `${this.position[0]},${this.position[1]},${this.position[2]}`;
+  /** Grid-cell key. A property, not the identity (§9.1). */
+  get key(): string {
+    return VoxelPixelBit.keyOf(this.position);
+  }
+
+  static keyOf(p: Vec3): string {
+    return `${p[0]},${p[1]},${p[2]}`;
+  }
+
+  /**
+   * Change the grid cell. Links are the container's job: call this only
+   * with no links attached, or through Grid.move which unlinks and relinks.
+   */
+  setPosition(to: Vec3): void {
+    if (this.nodes.some((n) => n.links.length)) {
+      throw new Error("unlink before moving; use Grid.move");
+    }
+    this.position = [to[0], to[1], to[2]];
+    this.onCameraMoved();
   }
 
   get present(): boolean {

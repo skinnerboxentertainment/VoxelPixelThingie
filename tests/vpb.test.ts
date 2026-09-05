@@ -5,8 +5,9 @@ import { type Camera, VoxelPixelBit } from "../src/vpb.ts";
 
 const RED = { color: 0xff0000 };
 
+let seq = 0;
 function lit(pos: readonly [number, number, number]): VoxelPixelBit {
-  const b = new VoxelPixelBit(pos);
+  const b = new VoxelPixelBit(`t${++seq}`, pos);
   b.emitAll(ALL_SLOTS, RED);
   return b;
 }
@@ -22,7 +23,7 @@ function block(w: number, h: number, d: number): VoxelPixelBit[] {
 }
 
 test("a bit has 26 nodes: 6 faces, 12 edges, 8 vertices", () => {
-  const b = new VoxelPixelBit([0, 0, 0]);
+  const b = new VoxelPixelBit(`t${++seq}`, [0, 0, 0]);
   assert.equal(b.nodes.length, NODE_COUNT);
   assert.equal(b.nodesOfKind("face").length, 6);
   assert.equal(b.nodesOfKind("edge").length, 12);
@@ -51,7 +52,7 @@ test("edge-adjacent bits link 3 pairs; vertex-adjacent bits link 1", () => {
 
 test("center of a 3×3×3 block is enclosed and leaves the render cycle", () => {
   const bits = block(3, 3, 3);
-  const center = bits.find((b) => b.id === "1,1,1")!;
+  const center = bits.find((b) => b.key === "1,1,1")!;
   assert.ok(center.isEnclosed);
   assert.equal(
     center.nodes.filter((n) => n.links.length).length,
@@ -66,7 +67,7 @@ test("center of a 3×3×3 block is enclosed and leaves the render cycle", () => 
 
 test("a corner bit of the block renders only its 3 outer faces, 3 outer edges, 1 outer vertex", () => {
   const bits = block(3, 3, 3);
-  const corner = bits.find((b) => b.id === "0,0,0")!;
+  const corner = bits.find((b) => b.key === "0,0,0")!;
   corner.evaluate();
   assert.equal(corner.renderCycle, true);
   const on = corner.nodes.filter((n) => n.renderEnabled).map((n) => n.slot);
@@ -99,7 +100,7 @@ test("removing a neighbor re-exposes the face that was against it", () => {
 });
 
 test("silent nodes never render, even when exposed", () => {
-  const b = new VoxelPixelBit([0, 0, 0]);
+  const b = new VoxelPixelBit(`t${++seq}`, [0, 0, 0]);
   b.emit(5, { light: 1 });
   b.evaluate();
   assert.equal(b.node(5).renderEnabled, true);
@@ -144,7 +145,7 @@ test("frustum and coverage failures take the whole bit out of the render cycle",
 
 test("an enclosed bit never runs camera tests", () => {
   const bits = block(3, 3, 3);
-  const center = bits.find((b) => b.id === "1,1,1")!;
+  const center = bits.find((b) => b.key === "1,1,1")!;
   let asked = 0;
   center.evaluate({
     position: [10, 10, 10],
