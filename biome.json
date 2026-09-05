@@ -2,7 +2,17 @@
   "$schema": "https://biomejs.dev/schemas/2.5.12/schema.json",
   "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
   "files": {
-    "includes": ["src/**", "tests/**", "bench/**", "*.json", "*.js", "!package-lock.json"]
+    "includes": [
+      "src/**",
+      "tests/**",
+      "bench/**",
+      "demo/**",
+      "*.json",
+      "*.js",
+      "*.ts",
+      "!package-lock.json",
+      "!**/__snapshots__"
+    ]
   },
   "formatter": {
     "enabled": true,
