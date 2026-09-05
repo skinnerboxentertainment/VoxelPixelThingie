@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VPB PixiJS Pixel Mode</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body { margin: 0; height: 100%; background: #0b0f19; color: #c9d1d9; font: 13px/1.4 system-ui, sans-serif; }
+      #stage { display: block; margin: 0 auto; background: #0b0f19; }
+      #bar { display: flex; gap: 8px; align-items: center; padding: 8px 12px; }
+      button { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
+      button[aria-pressed="true"] { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+      #hud { position: fixed; right: 12px; top: 12px; background: rgba(13,17,23,.85); border: 1px solid #30363d; border-radius: 8px; padding: 8px 12px; font-family: ui-monospace, monospace; white-space: pre; }
+      .hint { color: #8b949e; margin-left: auto; }
+    </style>
+  </head>
+  <body>
+    <div id="bar">
+      <button type="button" data-mode="pixel" aria-pressed="false">1 pixel</button>
+      <button type="button" data-mode="tile" aria-pressed="false">2 tile</button>
+      <span class="hint">pixel mode looks straight down Z: nine nodes per bit can ever show · click a pixel to remove it</span>
+    </div>
+    <canvas id="stage" width="800" height="600"></canvas>
+    <div id="hud"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

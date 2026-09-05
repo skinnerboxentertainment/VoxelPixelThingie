@@ -286,7 +286,7 @@ disables the whole cycle.
 | Silence | node | The node emits nothing (no color, no light, no data bound for the screen). |
 | Occlusion by link | node | The node has a link. A linked face, edge, or vertex is pressed against a neighbor and cannot be seen. |
 | Full enclosure | bit | All 6 faces are linked. The bit is interior and leaves the render cycle. |
-| Back-facing | node | The cosine between the node's outward direction and the direction to the camera is below −ε, with ε = 1e-4. A node exactly edge-on stays enabled; the renderer's own back-face culling makes the final cut. |
+| Back-facing | node | The cosine between the node's outward direction and the direction to the camera is below −ε, with ε = 1e-4. A node exactly edge-on stays enabled; the renderer's own back-face culling makes the final cut. For an orthographic view the camera supplies a direction instead of a point, the test is against that direction, and it is exclusive: an edge-on node has no projected area and does not render. Straight down an axis this leaves exactly 9 of 26 nodes. |
 | Frustum | bit | The bit's bounding cube is entirely outside the view frustum. |
 | Screen coverage | bit | The bit projects to less than one pixel and is not the nearest such bit. |
 
@@ -389,3 +389,4 @@ provenance is the log, not `data`.
 | 2026-09-05 | Event set gains `destroyed` so a log can replay removal; `created` carries color. Presence toggles are container-mediated (§9.2–9.3). |
 | 2026-09-05 | Emission is a fixed struct of optional color, light, data (§3.2). Closes former open question 2. |
 | 2026-09-05 | Back-facing test is inclusive at the plane with ε = 1e-4 on the cosine (§8.2). |
+| 2026-09-05 | Orthographic cameras test facing against a direction, exclusively at the plane, so a straight-down view renders exactly 9 nodes per bit (§8.2). |

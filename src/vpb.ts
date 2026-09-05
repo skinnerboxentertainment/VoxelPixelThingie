@@ -69,6 +69,13 @@ export interface VPBNode {
  */
 export interface Camera {
   readonly position: Vec3;
+  /**
+   * Orthographic views: the unit direction from the scene toward the camera.
+   * When set, facing is tested against this direction instead of `position`,
+   * and a node exactly edge-on does not face, because it has no projected
+   * area and there is no viewpoint for it to flicker at (SPEC.md §8.2).
+   */
+  readonly towardCamera?: Vec3;
   /** Frustum test on the bit's unit bounding cube. Default: true. */
   containsBit?(bit: VoxelPixelBit): boolean;
   /** Whether the bit projects to at least one pixel. Default: true. */
@@ -377,20 +384,24 @@ export class VoxelPixelBit {
 
   /** Back-facing test per open node. Frustum and coverage are asked of the camera at evaluate time. */
   #runCameraTests(camera: Camera): void {
+    const ortho = camera.towardCamera;
     for (const slot of this.#open) {
       const n = this.nodes[slot]!;
       const out = outwardOf(n.slot);
-      const c = this.nodeCenter(n.slot);
-      const toCam: Vec3 = [
-        camera.position[0] - c[0],
-        camera.position[1] - c[1],
-        camera.position[2] - c[2],
-      ];
+      let toCam: Vec3;
+      if (ortho) {
+        toCam = ortho;
+      } else {
+        const c = this.nodeCenter(n.slot);
+        toCam = [camera.position[0] - c[0], camera.position[1] - c[1], camera.position[2] - c[2]];
+      }
       const dot = out[0] * toCam[0] + out[1] * toCam[1] + out[2] * toCam[2];
       const len = Math.hypot(out[0], out[1], out[2]) * Math.hypot(toCam[0], toCam[1], toCam[2]);
       // A camera inside the node has no direction; treat it as facing.
       const cos = len === 0 ? 1 : dot / len;
-      this.#facingPass[n.slot] = cos > -FACING_EPSILON;
+      // Perspective: inclusive at the plane so grazing faces do not flicker.
+      // Orthographic: exclusive, an edge-on node has no area to show.
+      this.#facingPass[n.slot] = ortho ? cos > FACING_EPSILON : cos > -FACING_EPSILON;
     }
   }
 

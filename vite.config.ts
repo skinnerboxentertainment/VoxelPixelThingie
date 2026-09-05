@@ -15,6 +15,7 @@ export default defineConfig({
         index: resolve(demo, "index.html"),
         canvas: resolve(demo, "canvas/index.html"),
         three: resolve(demo, "three/index.html"),
+        pixi: resolve(demo, "pixi/index.html"),
       },
     },
   },
