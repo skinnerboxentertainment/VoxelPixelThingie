@@ -22,7 +22,8 @@ export function renderList(bits: Iterable<VoxelPixelBit>): RenderItem[] {
   const out: RenderItem[] = [];
   for (const bit of bits) {
     if (!bit.renderCycle) continue;
-    for (const n of bit.nodes) {
+    for (const slot of bit.open) {
+      const n = bit.nodes[slot]!;
       if (!n.renderEnabled) continue;
       out.push({
         bit,

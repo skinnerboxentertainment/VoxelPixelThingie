@@ -287,6 +287,14 @@ export class VoxelPixelBit {
     return this.#enclosed;
   }
 
+  /**
+   * Slots that passed the static tests as of the last evaluate(). Only these
+   * can be renderEnabled, so renderers may walk this instead of all 26.
+   */
+  get open(): readonly Slot[] {
+    return this.#open;
+  }
+
   // ---------------------------------------------------------------- events (§8.3)
 
   onStateChanged(): void {
