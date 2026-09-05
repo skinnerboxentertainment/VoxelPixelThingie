@@ -115,7 +115,20 @@ test("back-facing test: camera on +X sees +X face, not -X", () => {
   assert.equal(b.node(0).renderEnabled, false, "-X faces away");
   assert.equal(b.node(25).renderEnabled, true, "+X+Y+Z vertex leans toward camera");
   assert.equal(b.node(18).renderEnabled, false, "-X-Y-Z vertex leans away");
-  assert.equal(b.node(3).renderEnabled, false, "+Y is edge-on: not facing");
+  assert.equal(b.node(3).renderEnabled, false, "+Y: camera is 0.5 below its plane");
+});
+
+test("back-facing is inclusive at the plane and exclusive just behind it", () => {
+  const b = lit([0, 0, 0]);
+  // +Y face plane is y = 0.5. Camera exactly in the plane, 10 units away.
+  b.evaluate({ position: [10, 0.5, 0] });
+  assert.equal(b.node(3).renderEnabled, true, "edge-on stays enabled");
+  b.onCameraMoved();
+  b.evaluate({ position: [10, 0.49, 0] });
+  assert.equal(b.node(3).renderEnabled, false, "0.01 behind the plane disables");
+  b.onCameraMoved();
+  b.evaluate({ position: [0, 0.5, 0] });
+  assert.equal(b.node(3).renderEnabled, true, "camera on the node itself counts as facing");
 });
 
 test("camera tests are cached until onCameraMoved", () => {

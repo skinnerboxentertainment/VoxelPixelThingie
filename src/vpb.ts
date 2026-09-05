@@ -25,6 +25,14 @@ import {
 export type Vec3 = readonly [number, number, number];
 
 /**
+ * Back-facing tolerance on the cosine between a node's outward direction
+ * and the direction to the camera. A node is facing when the cosine exceeds
+ * minus this value, so a node exactly edge-on stays enabled and the
+ * renderer's own back-face culling makes the final cut (SPEC.md §8.2).
+ */
+export const FACING_EPSILON = 1e-4;
+
+/**
  * What a node emits. Open question 2 in SPEC.md §9: this is the fixed-struct
  * option. A field left undefined means "not emitting that."
  */
@@ -360,7 +368,10 @@ export class VoxelPixelBit {
         camera.position[2] - c[2],
       ];
       const dot = out[0] * toCam[0] + out[1] * toCam[1] + out[2] * toCam[2];
-      this.#facingPass[n.slot] = dot > 0;
+      const len = Math.hypot(out[0], out[1], out[2]) * Math.hypot(toCam[0], toCam[1], toCam[2]);
+      // A camera inside the node has no direction; treat it as facing.
+      const cos = len === 0 ? 1 : dot / len;
+      this.#facingPass[n.slot] = cos > -FACING_EPSILON;
     }
   }
 
