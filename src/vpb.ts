@@ -9,16 +9,16 @@
 import {
   ALL_SLOTS,
   FACE_SLOTS,
-  NODE_COUNT,
-  type NodeKind,
-  type Offset,
-  type Slot,
   kindOf,
   linkOffsets,
   localCenterOf,
+  NODE_COUNT,
+  type NodeKind,
   negate,
+  type Offset,
   outwardOf,
   partnerSlot,
+  type Slot,
 } from "./slots.ts";
 
 export type Vec3 = readonly [number, number, number];

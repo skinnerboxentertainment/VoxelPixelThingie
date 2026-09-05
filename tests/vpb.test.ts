@@ -1,7 +1,7 @@
-import { test } from "node:test";
 import assert from "node:assert/strict";
-import { VoxelPixelBit, type Camera } from "../src/vpb.ts";
+import { test } from "node:test";
 import { ALL_SLOTS, FACE_SLOTS, NODE_COUNT } from "../src/slots.ts";
+import { type Camera, VoxelPixelBit } from "../src/vpb.ts";
 
 const RED = { color: 0xff0000 };
 
@@ -146,7 +146,13 @@ test("an enclosed bit never runs camera tests", () => {
   const bits = block(3, 3, 3);
   const center = bits.find((b) => b.id === "1,1,1")!;
   let asked = 0;
-  center.evaluate({ position: [10, 10, 10], containsBit: () => (asked++, true) });
+  center.evaluate({
+    position: [10, 10, 10],
+    containsBit: () => {
+      asked++;
+      return true;
+    },
+  });
   assert.equal(asked, 0);
   assert.equal(center.renderCycle, false);
 });

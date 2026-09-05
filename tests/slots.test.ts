@@ -3,15 +3,15 @@
  * These tests hardcode the spec's numbers so that a drift in the formulas
  * shows up as a failure here, not as a silent change of meaning.
  */
-import { test } from "node:test";
+
 import assert from "node:assert/strict";
+import { test } from "node:test";
 import {
   ALL_SLOTS,
   EDGE_SLOTS,
-  FACE_SLOTS,
-  VERTEX_SLOTS,
   edgeSlot,
   edgeVertices,
+  FACE_SLOTS,
   faceEdges,
   faceSlot,
   kindOf,
@@ -22,6 +22,7 @@ import {
   partnerSlot,
   signsOf,
   slotOf,
+  VERTEX_SLOTS,
   vertexSlot,
   X,
   Y,
@@ -69,12 +70,30 @@ test("vertex slots follow §5.6", () => {
 
 test("face incidence follows §5.7", () => {
   const table: Record<number, [number[], number[]]> = {
-    0: [[10, 12, 14, 16], [18, 20, 22, 24]],
-    1: [[11, 13, 15, 17], [19, 21, 23, 25]],
-    2: [[6, 8, 14, 15], [18, 19, 22, 23]],
-    3: [[7, 9, 16, 17], [20, 21, 24, 25]],
-    4: [[6, 7, 10, 11], [18, 19, 20, 21]],
-    5: [[8, 9, 12, 13], [22, 23, 24, 25]],
+    0: [
+      [10, 12, 14, 16],
+      [18, 20, 22, 24],
+    ],
+    1: [
+      [11, 13, 15, 17],
+      [19, 21, 23, 25],
+    ],
+    2: [
+      [6, 8, 14, 15],
+      [18, 19, 22, 23],
+    ],
+    3: [
+      [7, 9, 16, 17],
+      [20, 21, 24, 25],
+    ],
+    4: [
+      [6, 7, 10, 11],
+      [18, 19, 20, 21],
+    ],
+    5: [
+      [8, 9, 12, 13],
+      [22, 23, 24, 25],
+    ],
   };
   for (const [slotStr, [edges, verts]] of Object.entries(table)) {
     const face = Number(slotStr);
@@ -126,11 +145,10 @@ test("partner rule examples from §7", () => {
 });
 
 test("vertex 25 (+X +Y +Z) links to all seven positive-octant offsets", () => {
-  const offsets = linkOffsets(25).map((o) => o.join(",")).sort();
-  assert.deepEqual(
-    offsets,
-    ["0,0,1", "0,1,0", "0,1,1", "1,0,0", "1,0,1", "1,1,0", "1,1,1"],
-  );
+  const offsets = linkOffsets(25)
+    .map((o) => o.join(","))
+    .sort();
+  assert.deepEqual(offsets, ["0,0,1", "0,1,0", "0,1,1", "1,0,0", "1,0,1", "1,1,0", "1,1,1"]);
 });
 
 test("outward direction has the sign pattern of the node", () => {

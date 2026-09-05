@@ -1,0 +1,29 @@
+name: Bug
+description: Something observed that contradicts the spec or a test
+labels: ["type:fix", "oracle-missing"]
+body:
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Exact steps or a code snippet. Include the commit SHA.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected
+      description: Cite the SPEC.md section or the test that says so.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual
+    validations:
+      required: true
+  - type: textarea
+    id: oracle
+    attributes:
+      label: Oracle
+      description: The failing test that will pass when this is fixed.

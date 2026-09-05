@@ -1,0 +1,35 @@
+name: Ticket
+description: A unit of work with a named oracle
+labels: ["oracle-missing"]
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: One or two sentences. What exists when this is done.
+    validations:
+      required: true
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+      description: What this ticket deliberately does not do.
+    validations:
+      required: true
+  - type: textarea
+    id: assumptions
+    attributes:
+      label: Assumptions
+      description: What is taken as true without checking. Mark each Verified or Trusted.
+  - type: textarea
+    id: oracle
+    attributes:
+      label: Oracle
+      description: The cheap executable check that will show done. A test, a fixture diff, a probe, a number. If none is cheap, building one is the first task. Remove the oracle-missing label once this is filled.
+    validations:
+      required: true
+  - type: textarea
+    id: plan
+    attributes:
+      label: Plan
+      description: Link to the plan-mode artifact, or the steps.
