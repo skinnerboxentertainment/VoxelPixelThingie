@@ -19,6 +19,9 @@ for (const n of [8, 16, 32]) {
     grid.onCameraMoved();
     grid.evaluate(camera);
   });
+  bench.add(`cameraMoved ${n}^3 (awake only)`, () => {
+    grid.cameraMoved(camera);
+  });
   bench.add(`renderList ${n}^3`, () => {
     renderList(grid.bits());
   });

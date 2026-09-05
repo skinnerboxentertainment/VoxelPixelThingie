@@ -97,8 +97,12 @@ export class VoxelPixelBit {
   #staticDirty = true; // state or links changed since last static pass
   #cameraDirty = true; // camera moved since last camera pass
   #enclosed = false;
+  /** True once the present/enclosed outcome has been written to the nodes; camera moves cannot change it. */
+  #settled = false;
   #staticPass: boolean[] = new Array(NODE_COUNT).fill(true);
   #facingPass: boolean[] = new Array(NODE_COUNT).fill(true);
+  /** Slots that passed the static tests; the only ones a camera move can change. */
+  #open: Slot[] = [];
 
   constructor(id: string, position: Vec3, opts: VPBOptions = {}) {
     if (!id) throw new RangeError("a bit needs an id; use a Grid to mint one");
@@ -273,9 +277,14 @@ export class VoxelPixelBit {
     return linkOffsets(slot).length;
   }
 
-  /** All 6 faces linked: the bit is interior (§8.2, full enclosure). */
+  /** All 6 faces linked: the bit is interior (§8.2, full enclosure). Computed now. */
   get isEnclosed(): boolean {
     return FACE_SLOTS.every((f) => this.nodes[f]!.links.length > 0);
+  }
+
+  /** Enclosure as of the last static pass. Cheap; valid right after evaluate(). */
+  get enclosed(): boolean {
+    return this.#enclosed;
   }
 
   // ---------------------------------------------------------------- events (§8.3)
@@ -316,17 +325,16 @@ export class VoxelPixelBit {
       this.#runStaticTests();
       this.#staticDirty = false;
       this.#cameraDirty = true; // exposure may have changed; camera results are stale
+      this.#settled = false;
     }
 
-    if (!this.#present) {
+    if (!this.#present || this.#enclosed) {
+      // Absent or interior: out of the render cycle, and no camera test can
+      // change that. Write the outcome once, then return immediately until
+      // links or state change again (§8.3).
+      if (this.#settled) return;
       this.#disableAll();
-      return;
-    }
-
-    if (this.#enclosed) {
-      // Interior bit. Leaves the render cycle and never runs a camera test.
-      this.renderCycle = false;
-      for (const n of this.nodes) n.renderEnabled = false;
+      this.#settled = true;
       return;
     }
 
@@ -340,26 +348,29 @@ export class VoxelPixelBit {
       inView = (camera.containsBit?.(this) ?? true) && (camera.coversPixel?.(this) ?? true);
     }
     this.renderCycle = inView;
-    for (const n of this.nodes) {
-      n.renderEnabled = inView && this.#staticPass[n.slot]! && this.#facingPass[n.slot]!;
+    // Nodes that failed the static tests were switched off in that pass and
+    // stay off; only open nodes can change with the camera.
+    for (const slot of this.#open) {
+      this.nodes[slot]!.renderEnabled = inView && this.#facingPass[slot]!;
     }
   }
 
   /** Presence, silence, occlusion by link, full enclosure. */
   #runStaticTests(): void {
     this.#enclosed = this.#present && this.isEnclosed;
+    this.#open.length = 0;
     for (const n of this.nodes) {
-      this.#staticPass[n.slot] = this.#present && !isSilent(n.emission) && n.links.length === 0;
+      const pass = this.#present && !isSilent(n.emission) && n.links.length === 0;
+      this.#staticPass[n.slot] = pass;
+      if (pass) this.#open.push(n.slot);
+      else n.renderEnabled = false;
     }
   }
 
-  /** Back-facing test per node. Frustum and coverage are asked of the camera at evaluate time. */
+  /** Back-facing test per open node. Frustum and coverage are asked of the camera at evaluate time. */
   #runCameraTests(camera: Camera): void {
-    for (const n of this.nodes) {
-      if (!this.#staticPass[n.slot]) {
-        this.#facingPass[n.slot] = false;
-        continue;
-      }
+    for (const slot of this.#open) {
+      const n = this.nodes[slot]!;
       const out = outwardOf(n.slot);
       const c = this.nodeCenter(n.slot);
       const toCam: Vec3 = [

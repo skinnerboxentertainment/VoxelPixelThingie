@@ -41,6 +41,9 @@ export class Grid {
   #sink: EventSink;
   #now: () => number;
   #seq = 0;
+  /** Bits that can ever render: present and not enclosed. Camera moves visit only these. */
+  #awake: VoxelPixelBit[] = [];
+  #awakeDirty = true;
 
   constructor(opts: GridOptions = {}) {
     this.#mintId = opts.mintId ?? (() => `vpb-${++this.#counter}`);
@@ -102,6 +105,7 @@ export class Grid {
     this.#byKey.set(key, bit);
     this.#byId.set(id, bit);
     this.#linkNeighbors(bit);
+    this.#awakeDirty = true;
     return bit;
   }
 
@@ -111,6 +115,7 @@ export class Grid {
     if (bit.present === present) return;
     bit.setPresent(present);
     if (present) this.#linkNeighbors(bit);
+    this.#awakeDirty = true;
   }
 
   /** Unlink and drop a bit. Returns false if it was not in this grid. */
@@ -122,6 +127,7 @@ export class Grid {
     this.#byKey.delete(bit.key);
     this.#byId.delete(bit.id);
     this.#stamp(bit.id, { type: "destroyed" });
+    this.#awakeDirty = true;
     return true;
   }
 
@@ -136,6 +142,7 @@ export class Grid {
     bit.setPosition(to);
     this.#byKey.set(toKey, bit);
     this.#linkNeighbors(bit);
+    this.#awakeDirty = true;
   }
 
   #linkNeighbors(bit: VoxelPixelBit): void {
@@ -146,13 +153,40 @@ export class Grid {
     }
   }
 
-  /** Run every bit's self-test. */
+  /** Run every bit's self-test, and refresh the awake set. */
   evaluate(camera?: Camera): void {
-    for (const b of this.#byKey.values()) b.evaluate(camera);
+    this.#awake.length = 0;
+    for (const b of this.#byKey.values()) {
+      b.evaluate(camera);
+      if (b.present && !b.enclosed) this.#awake.push(b);
+    }
+    this.#awakeDirty = false;
+  }
+
+  /** Bits that are present and not enclosed, as of the last evaluate(). */
+  get awake(): readonly VoxelPixelBit[] {
+    return this.#awake;
   }
 
   onCameraMoved(): void {
     for (const b of this.#byKey.values()) b.onCameraMoved();
+  }
+
+  /**
+   * The camera moved and nothing else did: re-test only the awake bits.
+   * Falls back to a full evaluate() if the structure changed since the
+   * last one, because the awake set would be stale (SPEC.md §8.3).
+   */
+  cameraMoved(camera: Camera): void {
+    if (this.#awakeDirty) {
+      this.onCameraMoved();
+      this.evaluate(camera);
+      return;
+    }
+    for (const b of this.#awake) {
+      b.onCameraMoved();
+      b.evaluate(camera);
+    }
   }
 
   /** Dense w×h×d block from the origin, every node emitting `emission` if given. */
