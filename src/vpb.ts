@@ -6,6 +6,7 @@
  * its own rendering wherever it can prove nothing would reach the screen.
  */
 
+import type { BitEventBody } from "./events.ts";
 import {
   ALL_SLOTS,
   FACE_SLOTS,
@@ -69,6 +70,8 @@ export interface Camera {
 export interface VPBOptions {
   present?: boolean;
   color?: number;
+  /** Where mutations are reported. Set by the container; standalone bits report nowhere. */
+  onEvent?: (body: BitEventBody) => void;
 }
 
 export class VoxelPixelBit {
@@ -82,6 +85,7 @@ export class VoxelPixelBit {
   renderCycle = true;
 
   #present: boolean;
+  #onEvent: (body: BitEventBody) => void;
   #staticDirty = true; // state or links changed since last static pass
   #cameraDirty = true; // camera moved since last camera pass
   #enclosed = false;
@@ -94,6 +98,7 @@ export class VoxelPixelBit {
     this.position = [position[0], position[1], position[2]];
     this.#present = opts.present ?? true;
     this.color = opts.color ?? 0xffffff;
+    this.#onEvent = opts.onEvent ?? (() => {});
     this.nodes = ALL_SLOTS.map((slot) => ({
       slot,
       kind: kindOf(slot),
@@ -122,8 +127,10 @@ export class VoxelPixelBit {
     if (this.nodes.some((n) => n.links.length)) {
       throw new Error("unlink before moving; use Grid.move");
     }
+    const from: Vec3 = [this.position[0], this.position[1], this.position[2]];
     this.position = [to[0], to[1], to[2]];
     this.onCameraMoved();
+    this.#onEvent({ type: "moved", from, to: [to[0], to[1], to[2]] });
   }
 
   get present(): boolean {
@@ -135,6 +142,12 @@ export class VoxelPixelBit {
     this.#present = present;
     if (!present) this.unlinkAll();
     this.onStateChanged();
+    this.#onEvent({ type: "presence", present });
+  }
+
+  /** Attach a free-form note to the bit's history. No effect on state. */
+  annotate(key: string, value: unknown): void {
+    this.#onEvent({ type: "annotated", key, value });
   }
 
   node(slot: Slot): VPBNode {
@@ -151,11 +164,15 @@ export class VoxelPixelBit {
   emit(slot: Slot, emission: Emission): void {
     this.node(slot).emission = { ...emission };
     this.onStateChanged();
+    this.#onEvent({ type: "emitted", slot, emission: { ...emission } });
   }
 
   /** Set the same emission on a set of nodes (collective addressing, §5.1). */
   emitAll(slots: Iterable<Slot>, emission: Emission): void {
-    for (const s of slots) this.node(s).emission = { ...emission };
+    for (const s of slots) {
+      this.node(s).emission = { ...emission };
+      this.#onEvent({ type: "emitted", slot: s, emission: { ...emission } });
+    }
     this.onStateChanged();
   }
 
@@ -194,6 +211,14 @@ export class VoxelPixelBit {
       if (partner === null) continue;
       this.nodes[slot]!.links.push({ bit: other, slot: partner, offset });
       other.nodes[partner]!.links.push({ bit: this, slot, offset: back });
+      this.#onEvent({ type: "linked", neighbor: other.id, slot, partner, offset });
+      other.#onEvent({
+        type: "linked",
+        neighbor: this.id,
+        slot: partner,
+        partner: slot,
+        offset: back,
+      });
       count++;
     }
     if (count) {
@@ -211,7 +236,10 @@ export class VoxelPixelBit {
       for (const n of bit.nodes) {
         const before = n.links.length;
         for (let i = n.links.length - 1; i >= 0; i--) {
-          if (n.links[i]!.bit === target) n.links.splice(i, 1);
+          if (n.links[i]!.bit === target) {
+            n.links.splice(i, 1);
+            bit.#onEvent({ type: "unlinked", neighbor: target.id, slot: n.slot });
+          }
         }
         if (n.links.length !== before) changed = true;
       }

@@ -338,21 +338,24 @@ supplied by the container.
 
 | Event | Payload |
 |-------|---------|
-| `created` | position, initial emission |
+| `created` | position, color, initial emission |
 | `presence` | present or absent |
 | `emitted` | slot, emission |
 | `linked` | neighbor id, slot, partner slot, offset |
 | `unlinked` | neighbor id, slot |
 | `moved` | from, to |
 | `annotated` | free-form key and value |
+| `destroyed` | none; the bit leaves its container |
 
 The bit's fields are a projection of its log. Folding a bit's events in
 order from `created` reproduces its current state.
 
 ### 9.3 Where the log lives
 
-Bits emit events to a sink supplied by the container. The default sink
-discards. Recording, retention, compaction, and replay are sink concerns
+Bits emit events to a sink supplied by the container, which stamps each
+with the bit id, sequence, and time. The default sink discards. Presence
+toggles go through the container so that a returning bit is relinked; the
+container emits `created` and `destroyed`, the bit emits the rest. Recording, retention, compaction, and replay are sink concerns
 and are not specified in v0.3.
 
 ### 9.4 What the log does not touch
@@ -382,3 +385,4 @@ provenance is the log, not `data`.
 | 2026-09-05 | Slot ordering fixed for faces, edges, and vertices under one sign convention (§5.3–5.6). Face order changed from `+X,−X,…` to `−X,+X,…` for consistency. |
 | 2026-09-05 | A VPB self-tests its components and disables its own render cycle or individual nodes to save processing. Culling is the bit's responsibility, not a global pass (§8). |
 | 2026-09-05 | The VPB is a spime: stable container-minted id, append-only event log held by a sink beside the bit, never read by the render path (§9, ADR 0005). Closes former open question 6. |
+| 2026-09-05 | Event set gains `destroyed` so a log can replay removal; `created` carries color. Presence toggles are container-mediated (§9.2–9.3). |

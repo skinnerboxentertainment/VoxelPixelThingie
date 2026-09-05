@@ -6,14 +6,19 @@
  * their own ids and never manage their own adjacency.
  */
 
+import { type BitEvent, type BitEventBody, type EventSink, NULL_SINK } from "./events.ts";
 import { type Camera, type Emission, type Vec3, VoxelPixelBit, type VPBOptions } from "./vpb.ts";
 
 export interface GridOptions {
   /** Id generator. Default is a deterministic counter, `vpb-1`, `vpb-2`, ... */
   mintId?: () => string;
+  /** Where stamped events go. Default discards. */
+  sink?: EventSink;
+  /** Clock for event timestamps. Default Date.now. */
+  now?: () => number;
 }
 
-export interface GridAddOptions extends VPBOptions {
+export interface GridAddOptions extends Omit<VPBOptions, "onEvent"> {
   /** Explicit id, used by replay. Must be unique within the grid. */
   id?: string;
   /** Emission applied to all 26 nodes on creation. */
@@ -33,9 +38,24 @@ export class Grid {
   #byId = new Map<string, VoxelPixelBit>();
   #mintId: () => string;
   #counter = 0;
+  #sink: EventSink;
+  #now: () => number;
+  #seq = 0;
 
   constructor(opts: GridOptions = {}) {
     this.#mintId = opts.mintId ?? (() => `vpb-${++this.#counter}`);
+    this.#sink = opts.sink ?? NULL_SINK;
+    this.#now = opts.now ?? Date.now;
+  }
+
+  /** Number of events stamped so far. */
+  get eventCount(): number {
+    return this.#seq;
+  }
+
+  #stamp(bit: string, body: BitEventBody): void {
+    const event: BitEvent = { ...body, bit, seq: ++this.#seq, time: this.#now() };
+    this.#sink.record(event);
   }
 
   get size(): number {
@@ -64,15 +84,33 @@ export class Grid {
     if (this.#byKey.has(key)) throw new Error(`cell ${key} is occupied`);
     const id = opts.id ?? this.#mintId();
     if (this.#byId.has(id)) throw new Error(`id ${id} is already in this grid`);
-    const bit = new VoxelPixelBit(id, position, opts);
+    const bit = new VoxelPixelBit(id, position, {
+      present: opts.present,
+      color: opts.color,
+      onEvent: (body) => this.#stamp(id, body),
+    });
     if (opts.emission) {
       for (const n of bit.nodes) n.emission = { ...opts.emission };
       bit.onStateChanged();
     }
+    this.#stamp(id, {
+      type: "created",
+      position: [position[0], position[1], position[2]],
+      color: bit.color,
+      ...(opts.emission ? { emission: { ...opts.emission } } : {}),
+    });
     this.#byKey.set(key, bit);
     this.#byId.set(id, bit);
     this.#linkNeighbors(bit);
     return bit;
+  }
+
+  /** Toggle presence through the container so an absent bit relinks when it returns. */
+  setPresent(bit: VoxelPixelBit, present: boolean): void {
+    if (this.#byId.get(bit.id) !== bit) throw new Error(`bit ${bit.id} is not in this grid`);
+    if (bit.present === present) return;
+    bit.setPresent(present);
+    if (present) this.#linkNeighbors(bit);
   }
 
   /** Unlink and drop a bit. Returns false if it was not in this grid. */
@@ -83,6 +121,7 @@ export class Grid {
     bit.unlinkAll();
     this.#byKey.delete(bit.key);
     this.#byId.delete(bit.id);
+    this.#stamp(bit.id, { type: "destroyed" });
     return true;
   }
 
