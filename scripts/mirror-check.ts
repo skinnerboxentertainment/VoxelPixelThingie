@@ -22,7 +22,8 @@ import { sceneDigest, verifyScene } from "../src/verify.ts";
 const argv = process.argv.slice(2);
 const didDocIndex = argv.indexOf("--did-doc");
 const didDocArg = didDocIndex >= 0 ? argv[didDocIndex + 1] : undefined;
-const positional = argv.filter((a, i) => i !== didDocIndex && i !== didDocIndex + 1);
+const positional =
+  didDocIndex < 0 ? argv : argv.filter((_a, i) => i !== didDocIndex && i !== didDocIndex + 1);
 const [dir, ...urls] = positional;
 if (!dir || urls.length === 0) {
   console.error("usage: mirror-check <folder|pack.json> <url|pack-url.json> [more...]");
