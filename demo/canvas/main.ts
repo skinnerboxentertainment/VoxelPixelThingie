@@ -18,12 +18,14 @@ import {
   type Vec3,
 } from "../../src/index.ts";
 import { COLORS, referenceScene, sceneCenter } from "../shared/scene.ts";
+import { sceneTextLines } from "../shared/text.ts";
 import {
   basisOf,
   type Mode,
   modelCamera,
   orbit,
   projector,
+  stepCursor,
   type View,
   viewForMode,
 } from "../shared/view.ts";
@@ -188,6 +190,59 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "3") setMode("cube");
 });
 
+// Keyboard cursor (Phase 24): the same removal and restore the pointer uses.
+let cursor: Vec3 | null = null;
+const statusEl = document.getElementById("status")!;
+function setCursor(c: Vec3 | null): void {
+  cursor = c;
+  if (c) {
+    const bit = grid.at(c[0], c[1], c[2]);
+    statusEl.textContent = `cursor at ${c.join(",")}: ${bit ? `bit ${bit.id}` : "empty"}`;
+  } else statusEl.textContent = "";
+  draw();
+}
+canvas.addEventListener("keydown", (e) => {
+  const start: Vec3 = cursor ?? [0, 0, 0];
+  const next = stepCursor(start, e.key, e.shiftKey, 8);
+  if (next) {
+    e.preventDefault();
+    setCursor(cursor ? next : start);
+    return;
+  }
+  if (e.key === "Enter") {
+    e.preventDefault();
+    if (!cursor) {
+      setCursor(start);
+      return;
+    }
+    const bit = grid.at(cursor[0], cursor[1], cursor[2]);
+    if (bit) act(bit, e.shiftKey);
+    else statusEl.textContent = `nothing at ${cursor.join(",")}`;
+  } else if (e.key === "Escape") setCursor(null);
+});
+
+const textView = document.getElementById("text-view") as HTMLElement;
+const textToggle = document.getElementById("text-toggle") as HTMLButtonElement;
+function renderText(): void {
+  if (textView.hidden) return;
+  const lines = sceneTextLines(grid);
+  document.getElementById("text-head")!.textContent = lines[0] ?? "";
+  document.getElementById("text-list")!.replaceChildren(
+    ...lines.slice(1).map((l) => {
+      const li = document.createElement("li");
+      li.textContent = l;
+      return li;
+    }),
+  );
+}
+function showText(on: boolean): void {
+  textView.hidden = !on;
+  textToggle.setAttribute("aria-pressed", String(on));
+  renderText();
+}
+textToggle.addEventListener("click", () => showText(Boolean(textView.hidden)));
+if (new URLSearchParams(location.search).get("view") === "text") showText(true);
+
 let drag: { x: number; y: number; moved: boolean } | null = null;
 canvas.addEventListener("pointerdown", (e) => {
   drag = { x: e.clientX, y: e.clientY, moved: false };
@@ -231,30 +286,36 @@ function pick(x: number, y: number, restore: boolean): void {
   for (let i = lastPick.length - 1; i >= 0; i--) {
     const { bit, polys } = lastPick[i]!;
     if (polys.some((p) => inside(p.pts, x, y))) {
-      if (restore) {
-        // Restore: put back any absent neighbor cell adjacent to this bit's face.
-        for (const slot of FACE_SLOTS) {
-          if (bit.linkCountOf(slot)) continue;
-          const o = localCenterOf(slot);
-          const cell: Vec3 = [
-            bit.position[0] + o[0] * 2,
-            bit.position[1] + o[1] * 2,
-            bit.position[2] + o[2] * 2,
-          ];
-          if (!grid.has(cell) && cell.every((c) => c >= 0 && c < 8)) {
-            const nb = grid.add(cell, { emission: { color: COLORS.face, light: 0.6 } });
-            nb.emitAll(EDGE_SLOTS, { color: COLORS.edge, light: 1 });
-            nb.emitAll(VERTEX_SLOTS, { color: COLORS.vertex, light: 1 });
-            break;
-          }
-        }
-      } else {
-        grid.remove(bit);
-      }
-      draw();
+      act(bit, restore);
       return;
     }
   }
+}
+
+/** Remove the bit, or restore an absent neighbor of it: one path for pointer and keyboard. */
+function act(bit: BitHandle, restore: boolean): void {
+  if (restore) {
+    // Restore: put back any absent neighbor cell adjacent to this bit's face.
+    for (const slot of FACE_SLOTS) {
+      if (bit.linkCountOf(slot)) continue;
+      const o = localCenterOf(slot);
+      const cell: Vec3 = [
+        bit.position[0] + o[0] * 2,
+        bit.position[1] + o[1] * 2,
+        bit.position[2] + o[2] * 2,
+      ];
+      if (!grid.has(cell) && cell.every((c) => c >= 0 && c < 8)) {
+        const nb = grid.add(cell, { emission: { color: COLORS.face, light: 0.6 } });
+        nb.emitAll(EDGE_SLOTS, { color: COLORS.edge, light: 1 });
+        nb.emitAll(VERTEX_SLOTS, { color: COLORS.vertex, light: 1 });
+        break;
+      }
+    }
+  } else {
+    grid.remove(bit);
+  }
+  draw();
+  renderText();
 }
 
 // --- test hook
@@ -264,6 +325,8 @@ function pick(x: number, y: number, restore: boolean): void {
     return { ...countNodes(items), nodes: items.length, bits: grid.size };
   },
   setMode,
+  cursor: () => cursor,
+  textLines: () => sceneTextLines(grid),
 };
 
 setMode("cube");

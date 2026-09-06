@@ -12,6 +12,7 @@
       #bar { display: flex; gap: 8px; align-items: center; padding: 8px 12px; }
       button { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
       button[aria-pressed="true"] { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+      #stage:focus-visible, button:focus-visible { outline: 2px solid #58a6ff; outline-offset: 2px; }
       #hud { position: fixed; right: 12px; top: 12px; background: rgba(13,17,23,.85); border: 1px solid #30363d; border-radius: 8px; padding: 8px 12px; font-family: ui-monospace, monospace; white-space: pre; }
       .hint { color: #8b949e; margin-left: auto; }
     </style>
@@ -21,10 +22,13 @@
       <button type="button" data-mode="pixel" aria-pressed="false">1 pixel</button>
       <button type="button" data-mode="tile" aria-pressed="false">2 tile</button>
       <button type="button" data-mode="cube" aria-pressed="false">3 cube</button>
+      <button type="button" id="text-toggle" aria-pressed="false" aria-controls="text-view">text view</button>
       <span class="hint">drag to orbit in cube mode · click a bit to remove it · shift-click to restore</span>
     </div>
-    <canvas id="stage" width="800" height="600"></canvas>
-    <div id="hud"></div>
+    <canvas id="stage" width="800" height="600" tabindex="0" aria-label="Scene. Arrow keys move the cursor, Page Up and Page Down move it in depth, Enter removes the bit under it, Shift and Enter restore a neighbor, keys 1, 2, 3 change the mode."></canvas>
+    <p id="status" role="status" aria-live="polite" style="padding: 0 12px; color: #8b949e"></p>
+    <section id="text-view" hidden aria-live="polite" aria-label="the scene as text" style="padding: 0 12px 12px; font-family: ui-monospace, monospace; font-size: 12px"><h2 style="font-size: 13px">The scene as text</h2><p id="text-head"></p><ol id="text-list"></ol></section>
+    <div id="hud" aria-hidden="true"></div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
