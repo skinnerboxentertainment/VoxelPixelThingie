@@ -45,7 +45,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # The head commit, not the pull request's merge commit: the manifest names
+      # the commit it built, and a build elsewhere of the same commit must match.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
