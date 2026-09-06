@@ -30,10 +30,11 @@ function fakeClock() {
 test("oracle: carve, move, emit, destroy on an 8x8x8, then replay to the same state", () => {
   const sink = new RecordingSink();
   const live = Grid.fill(8, 8, 8, { emission: RED, sink, now: fakeClock() });
-
-  // Carve a 12-bit tunnel along X through the middle by presence.
-  for (let x = 0; x < 8; x++) live.setPresent(live.at(x, 3, 3)!, false);
-  for (let x = 2; x < 6; x++) live.setPresent(live.at(x, 4, 3)!, false);
+  live.wrangle({ actor: "test", cause: "carve tunnel" }, () => {
+    // Carve a 12-bit tunnel along X through the middle by presence.
+    for (let x = 0; x < 8; x++) live.setPresent(live.at(x, 3, 3)!, false);
+    for (let x = 2; x < 6; x++) live.setPresent(live.at(x, 4, 3)!, false);
+  });
   // Bring one back.
   live.setPresent(live.at(5, 3, 3)!, true);
   // Move a corner bit out to a free cell.
@@ -56,6 +57,7 @@ test("oracle: carve, move, emit, destroy on an 8x8x8, then replay to the same st
   replayed.evaluate();
 
   assert.equal(replayed.size, live.size);
+  assert.equal(replayed.id, live.id, "the frame survives replay");
   assert.deepEqual(snapshot(replayed), snapshot(live));
 
   // Render results agree too, since they are a projection of the same state.
@@ -79,6 +81,11 @@ test("events are stamped in sequence with the container clock and the bit id", (
   const kinds = sink.events.map((e) => `${e.bit}:${e.type}`);
   assert.equal(kinds[0], `${a.id}:created`);
   assert.equal(kinds[1], `${b.id}:created`);
+  assert.ok(
+    sink.events.every((e) => e.frame === g.id),
+    "every event names its frame",
+  );
+  assert.ok(sink.events.every((e) => e.actor === undefined && e.cause === undefined));
   assert.equal(sink.events.filter((e) => e.type === "linked").length, 18, "9 per side");
   assert.equal(g.eventCount, sink.events.length);
 });
@@ -125,7 +132,7 @@ test("standalone bits report nowhere and emitAll records one event per slot", ()
 
 test("replay rejects an event for an unknown bit", () => {
   assert.throws(
-    () => replay([{ type: "presence", present: false, bit: "ghost", seq: 1, time: 0 }]),
+    () => replay([{ type: "presence", present: false, bit: "ghost", seq: 1, time: 0, frame: "f" }]),
     /no bit ghost/,
   );
 });

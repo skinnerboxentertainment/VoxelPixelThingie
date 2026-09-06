@@ -29,7 +29,19 @@ export type BitEvent = BitEventBody & {
   readonly seq: number;
   /** Supplied by the container's clock. */
   readonly time: number;
+  /** The container's id: where this happened (SPEC.md §9.2). */
+  readonly frame: string;
+  /** Who or what made the change, from the wrangler context (§9.6). */
+  readonly actor?: string;
+  /** Why, from the wrangler context (§9.6). */
+  readonly cause?: string;
 };
+
+/** Who is changing bits and why. Stamped onto events while active (§9.6). */
+export interface WranglerContext {
+  actor?: string;
+  cause?: string;
+}
 
 export interface EventSink {
   record(event: BitEvent): void;
@@ -46,40 +58,49 @@ export class RecordingSink implements EventSink {
 
 /**
  * Fold a log into a fresh Grid. `linked` and `unlinked` are derived by the
- * grid from the other events and are skipped. Ids are preserved.
+ * grid from the other events and are skipped. Ids are preserved, including
+ * the container's, so replayed events carry the original frame. Replayed
+ * events are stamped actor "replay" and keep the original cause.
  */
 export function replay(events: Iterable<BitEvent>, opts: GridOptions = {}): Grid {
-  const grid = new Grid(opts);
   const ordered = [...events].sort((a, b) => a.seq - b.seq);
+  const frame = opts.id ?? ordered[0]?.frame;
+  const grid = new Grid(frame ? { ...opts, id: frame } : opts);
   for (const e of ordered) {
-    switch (e.type) {
-      case "created":
-        grid.add(e.position, { id: e.bit, color: e.color, emission: e.emission });
-        break;
-      case "presence":
-        grid.setPresent(need(grid, e.bit), e.present);
-        break;
-      case "emitted":
-        need(grid, e.bit).emit(e.slot, e.emission);
-        break;
-      case "moved":
-        grid.move(need(grid, e.bit), e.to);
-        break;
-      case "annotated":
-        need(grid, e.bit).annotate(e.key, e.value);
-        break;
-      case "passport":
-        need(grid, e.bit).setPassport(e.passport);
-        break;
-      case "destroyed":
-        grid.remove(need(grid, e.bit));
-        break;
-      case "linked":
-      case "unlinked":
-        break;
-    }
+    grid.wrangle({ actor: "replay", ...(e.cause !== undefined ? { cause: e.cause } : {}) }, () =>
+      apply(grid, e),
+    );
   }
   return grid;
+}
+
+function apply(grid: Grid, e: BitEvent): void {
+  switch (e.type) {
+    case "created":
+      grid.add(e.position, { id: e.bit, color: e.color, emission: e.emission });
+      break;
+    case "presence":
+      grid.setPresent(need(grid, e.bit), e.present);
+      break;
+    case "emitted":
+      need(grid, e.bit).emit(e.slot, e.emission);
+      break;
+    case "moved":
+      grid.move(need(grid, e.bit), e.to);
+      break;
+    case "annotated":
+      need(grid, e.bit).annotate(e.key, e.value);
+      break;
+    case "passport":
+      need(grid, e.bit).setPassport(e.passport);
+      break;
+    case "destroyed":
+      grid.remove(need(grid, e.bit));
+      break;
+    case "linked":
+    case "unlinked":
+      break;
+  }
 }
 
 function need(grid: Grid, id: string) {

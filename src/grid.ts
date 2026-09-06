@@ -6,11 +6,20 @@
  * their own ids and never manage their own adjacency.
  */
 
-import { type BitEvent, type BitEventBody, type EventSink, NULL_SINK } from "./events.ts";
+import {
+  type BitEvent,
+  type BitEventBody,
+  type EventSink,
+  NULL_SINK,
+  type WranglerContext,
+} from "./events.ts";
+import { uuidv7 } from "./uuid.ts";
 import { type Camera, type Emission, type Vec3, VoxelPixelBit, type VPBOptions } from "./vpb.ts";
 
 export interface GridOptions {
-  /** Id generator. Default is a deterministic counter, `vpb-1`, `vpb-2`, ... */
+  /** The container's own id. Default: a UUID v7. Replay passes the original. */
+  id?: string;
+  /** Id generator for bits. Default: UUID v7 (SPEC.md §9.1). Tests may inject a counter. */
   mintId?: () => string;
   /** Where stamped events go. Default discards. */
   sink?: EventSink;
@@ -34,10 +43,12 @@ const NEIGHBOR_OFFSETS: readonly Vec3[] = (() => {
 })();
 
 export class Grid {
+  /** Immutable container identity; the `frame` on every event it stamps. */
+  readonly id: string;
+  #wrangler: WranglerContext = {};
   #byKey = new Map<string, VoxelPixelBit>();
   #byId = new Map<string, VoxelPixelBit>();
   #mintId: () => string;
-  #counter = 0;
   #sink: EventSink;
   #now: () => number;
   #seq = 0;
@@ -46,7 +57,8 @@ export class Grid {
   #awakeDirty = true;
 
   constructor(opts: GridOptions = {}) {
-    this.#mintId = opts.mintId ?? (() => `vpb-${++this.#counter}`);
+    this.id = opts.id ?? uuidv7();
+    this.#mintId = opts.mintId ?? uuidv7;
     this.#sink = opts.sink ?? NULL_SINK;
     this.#now = opts.now ?? Date.now;
   }
@@ -57,8 +69,37 @@ export class Grid {
   }
 
   #stamp(bit: string, body: BitEventBody): void {
-    const event: BitEvent = { ...body, bit, seq: ++this.#seq, time: this.#now() };
+    const w = this.#wrangler;
+    const event: BitEvent = {
+      ...body,
+      bit,
+      seq: ++this.#seq,
+      time: this.#now(),
+      frame: this.id,
+      ...(w.actor !== undefined ? { actor: w.actor } : {}),
+      ...(w.cause !== undefined ? { cause: w.cause } : {}),
+    };
     this.#sink.record(event);
+  }
+
+  /** The wrangler context in force, empty outside wrangle(). */
+  get wrangler(): WranglerContext {
+    return { ...this.#wrangler };
+  }
+
+  /**
+   * Run `fn` with a wrangler context stamped onto every event it causes,
+   * then restore the previous context, even if `fn` throws (SPEC.md §9.6).
+   * Synchronous by design: an async `fn` would escape the context.
+   */
+  wrangle<T>(context: WranglerContext, fn: () => T): T {
+    const previous = this.#wrangler;
+    this.#wrangler = { ...context };
+    try {
+      return fn();
+    } finally {
+      this.#wrangler = previous;
+    }
   }
 
   get size(): number {
