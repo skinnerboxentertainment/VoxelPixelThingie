@@ -18,6 +18,7 @@ export * from "./policy.ts";
 export * from "./render-list.ts";
 export * from "./rfc3161.ts";
 export * from "./scene.ts";
+export * from "./senses.ts";
 export * from "./slots.ts";
 export * from "./storage.ts";
 export * from "./store.ts";
