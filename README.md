@@ -49,7 +49,7 @@ Other commands: `npm run typecheck`, `npm run lint`, `npm run test:coverage`,
 ## Read
 
 - [SPEC.md](SPEC.md): the model. Nodes, links, slot numbering, self-culling,
-  identity and history.
+  identity and history, passport, persistence.
 - [RESEARCH.md](RESEARCH.md): thirteen ways to render it, from Canvas to
   Unreal, and the 2D / 2.5D / 3D matrix.
 - [REPOS.md](REPOS.md): libraries worth integrating or borrowing from.
