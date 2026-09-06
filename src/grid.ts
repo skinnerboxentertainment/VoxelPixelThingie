@@ -68,6 +68,19 @@ export class Grid {
     return this.#seq;
   }
 
+  /**
+   * Replace where events go. Used after replay so a resumed scene sink
+   * receives only new events, never the replayed ones (SPEC.md §10.6).
+   */
+  attachSink(sink: EventSink): void {
+    this.#sink = sink;
+  }
+
+  /** Continue numbering from a stored scene: the next event gets max(current, seq) + 1. */
+  resumeSeq(seq: number): void {
+    this.#seq = Math.max(this.#seq, seq);
+  }
+
   #stamp(bit: string, body: BitEventBody): void {
     const w = this.#wrangler;
     const event: BitEvent = {

@@ -27,6 +27,8 @@ export interface Manifest {
   bits: number;
   seq: number;
   compacted?: boolean;
+  /** Bit ids, for stores that cannot list a directory (SPEC.md §10.3). */
+  ids?: string[];
   hashes?: Record<string, { passport: string; events: string }>;
 }
 
@@ -143,6 +145,33 @@ export class SceneSink implements EventSink {
     this.#limit = opts.passportLimit ?? PASSPORT_LIMIT_BYTES;
   }
 
+  /**
+   * A sink that continues an existing scene: its projection is loaded from
+   * the passports, with any ledger tail past each passport applied, and the
+   * manifest is kept. Pair with openScene(store, { attach: sink }).
+   */
+  static async resume(store: FileStore, opts: SceneSinkOptions = {}): Promise<SceneSink> {
+    const manifest = await readManifest(store);
+    if (!manifest) throw new Error("no manifest.json: not a scene");
+    const sink = new SceneSink(store, opts);
+    sink.#manifest = { ...manifest };
+    const ids = await store.list("bits");
+    await mapLimit(ids, CONCURRENCY, async (id) => {
+      const [l, p] = await Promise.all([store.read(ledgerPath(id)), store.read(passportPath(id))]);
+      let record = p ? (JSON.parse(p) as PassportFile) : undefined;
+      for (const e of parseLedger(l)) {
+        if (!record || e.seq > record.seq) record = applyToPassport(record, e);
+      }
+      if (record) sink.#passports.set(id, record);
+    });
+    return sink;
+  }
+
+  /** The scene id this sink writes, once known. */
+  get sceneId(): string | undefined {
+    return this.#manifest?.scene;
+  }
+
   record(event: BitEvent): void {
     if (event.type === "passport") {
       const bytes = new TextEncoder().encode(JSON.stringify(event.passport)).length;
@@ -168,46 +197,48 @@ export class SceneSink implements EventSink {
     if (this.#queue.length === 0) return;
     const batch = this.#queue;
     this.#queue = [];
-    // Lines are grouped per bit so a store with expensive operations (OPFS)
-    // sees one append per bit per batch. Within a bit, order is preserved.
+    // 0. Project the whole batch first. A projection that fails (an event for
+    //    a bit this sink has never seen) writes nothing at all.
+    const next = new Map<string, PassportFile>();
     const lines = new Map<string, string[]>();
+    let seq = this.#manifest?.seq ?? 0;
     for (const e of batch) {
+      const current = next.get(e.bit) ?? this.#passports.get(e.bit);
+      next.set(e.bit, applyToPassport(current, e));
       let arr = lines.get(e.bit);
       if (!arr) {
         arr = [];
         lines.set(e.bit, arr);
       }
       arr.push(JSON.stringify(e));
+      seq = Math.max(seq, e.seq);
     }
-    // 1. Ledger first: the truth. Different bits are independent files.
+    // 1. Ledger first: the truth. Lines are grouped per bit so a store with
+    //    expensive operations (OPFS) sees one append per bit per batch.
     await mapLimit([...lines], CONCURRENCY, ([id, ls]) =>
       this.store.append(ledgerPath(id), `${ls.join("\n")}\n`),
     );
-    const touched = new Set<string>();
-    for (const e of batch) {
-      // 2. Passport: a cache of the ledger, rewritten atomically.
-      const next = applyToPassport(this.#passports.get(e.bit), e);
-      this.#passports.set(e.bit, next);
-      touched.add(e.bit);
-      if (!this.#manifest) {
-        this.#manifest = {
-          format: SCENE_FORMAT,
-          scene: e.frame,
-          created: this.#now(),
-          updated: this.#now(),
-          bits: 0,
-          seq: 0,
-        };
-      }
-      this.#manifest.seq = Math.max(this.#manifest.seq, e.seq);
-    }
-    await mapLimit([...touched], CONCURRENCY, (id) =>
+    // 2. Passports: a cache of the ledger, each rewritten atomically.
+    for (const [id, p] of next) this.#passports.set(id, p);
+    await mapLimit([...next.keys()], CONCURRENCY, (id) =>
       this.store.write(passportPath(id), `${JSON.stringify(this.#passports.get(id))}\n`),
     );
     // 3. Manifest, once per batch.
-    const m = this.#manifest!;
+    if (!this.#manifest) {
+      this.#manifest = {
+        format: SCENE_FORMAT,
+        scene: batch[0]!.frame,
+        created: this.#now(),
+        updated: this.#now(),
+        bits: 0,
+        seq: 0,
+      };
+    }
+    const m = this.#manifest;
+    m.seq = seq;
     m.updated = this.#now();
     m.bits = [...this.#passports.values()].filter((p) => !p.destroyed).length;
+    m.ids = [...this.#passports.keys()].sort();
     await this.store.write("manifest.json", `${JSON.stringify(m, null, 2)}\n`);
   }
 }
@@ -242,7 +273,25 @@ export async function readManifest(store: FileStore): Promise<Manifest | undefin
  * is replayed. A compacted scene is rebuilt from passports, then the ledger
  * tail past each passport's seq is applied.
  */
-export async function openScene(store: FileStore, opts: GridOptions = {}): Promise<Grid> {
+export interface OpenSceneOptions extends GridOptions {
+  /**
+   * A sink attached after the scene is rebuilt, so it sees only new events.
+   * Use SceneSink.resume(store) to continue writing the same scene. The
+   * grid's sequence continues from the manifest either way.
+   */
+  attach?: EventSink;
+}
+
+export async function openScene(store: FileStore, opts: OpenSceneOptions = {}): Promise<Grid> {
+  const { attach, ...gridOnly } = opts;
+  const grid = await rebuild(store, gridOnly);
+  const manifest = (await readManifest(store))!;
+  grid.resumeSeq(manifest.seq);
+  if (attach) grid.attachSink(attach);
+  return grid;
+}
+
+async function rebuild(store: FileStore, opts: GridOptions): Promise<Grid> {
   const manifest = await readManifest(store);
   if (!manifest) throw new Error("no manifest.json: not a scene");
   const ids = await store.list("bits");

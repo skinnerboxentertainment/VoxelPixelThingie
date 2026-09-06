@@ -469,7 +469,9 @@ on-disk form and is named by the wrangler; the container's id is inside
 
 `hashes` is optional. When present it lets an importer check integrity on
 a store that does not address content by hash. `seq` is the container's
-last stamped sequence number.
+last stamped sequence number. `ids` lists every bit folder, so a store that
+cannot list a directory (a URL prefix, for example) can still enumerate the
+scene; sinks write it on every manifest update.
 
 ### 10.4 passport.json
 
