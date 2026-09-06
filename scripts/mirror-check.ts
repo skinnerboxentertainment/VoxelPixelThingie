@@ -22,9 +22,12 @@ if (!dir || urls.length === 0) {
 let failed = 0;
 const digests: { name: string; digest: string }[] = [];
 
-async function storeFor(target: string): Promise<NodeFsStore | FetchStore | PackedStore> {
+async function storeFor(raw: string): Promise<NodeFsStore | FetchStore | PackedStore> {
+  // "pack:<target>" forces packed reading for URLs without a .json suffix (an IPFS CID).
+  const forcedPack = raw.startsWith("pack:");
+  const target = forcedPack ? raw.slice(5) : raw;
   const isUrl = /^https?:\/\//.test(target);
-  if (target.endsWith(".json")) {
+  if (forcedPack || target.endsWith(".json")) {
     return isUrl
       ? PackedStore.fromUrl(target)
       : PackedStore.fromText(await fs.readFile(target, "utf8"));
