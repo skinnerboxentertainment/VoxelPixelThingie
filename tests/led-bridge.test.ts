@@ -173,7 +173,10 @@ test("the bridge: the demo posts a bit, the display gets its bytes, the latency 
       bridge.samples.slice(0, 16).map((s) => s.sequence),
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 1],
     );
-    assert.ok(stats.eventToPacket.p50 >= 0);
+    // Event times are Date.now() at millisecond resolution and the packet stamp is a
+    // wall-aligned high-resolution clock, so a post answered within a millisecond can
+    // read a fraction negative. Tolerate the alignment, not more.
+    assert.ok(stats.eventToPacket.p50 >= -1, `p50 ${stats.eventToPacket.p50}`);
     assert.ok(
       stats.receiptToPacket.max < 1000,
       `receipt to packet max ${stats.receiptToPacket.max} ms`,

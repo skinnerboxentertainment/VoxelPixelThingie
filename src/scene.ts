@@ -11,6 +11,7 @@
 import type { Container, ContainerOptions } from "./container.ts";
 import { type BitEvent, type EventSink, replay } from "./events.ts";
 import { FlatGrid } from "./flat-grid.ts";
+import { validateJobAnnotation } from "./jobs.ts";
 import { assertJsonSerializable, type JsonObject } from "./json.ts";
 import { EDGE_SLOTS, NODE_COUNT, VERTEX_SLOTS } from "./slots.ts";
 import type { FileStore } from "./store.ts";
@@ -188,6 +189,8 @@ export class SceneSink implements EventSink {
   }
 
   record(event: BitEvent): void {
+    // Job records are annotations under reserved keys; a malformed one is refused here (SPEC.md §9.7).
+    if (event.type === "annotated") validateJobAnnotation(event.key, event.value);
     if (event.type === "passport") {
       const bytes = new TextEncoder().encode(JSON.stringify(event.passport)).length;
       if (bytes > this.#limit) {

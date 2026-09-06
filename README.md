@@ -52,6 +52,10 @@ EPCIS 2.0 document, validated), `npm run scene:epcis:capture -- <out.json>`
 `npm run led:drive -- --host <wled ip> --scene <folder|pack> [--dry-run]`
 (light a physical bit over DDP, or `--listen` to bridge the Three.js demo
 with `?led=http://127.0.0.1:4049&bit=first`),
+`npm run job:drive -- <folder> [--bit id] [--kind led-frame|epcis|links]`
+(ask a bit for work and watch request, result, audit, and reward land in
+its ledger), `npm run scene:sign -- <folder> --key <jwk> --host <host>`
+(sign a scene's seal with its container's key),
 `node --experimental-strip-types scripts/wled-sim.ts` (a WLED emulator in
 the terminal, UDP 4048 and a JSON API on 8790, so the driver runs with no
 hardware: pass `--http-port 8790` to `led:drive`; invoked directly because

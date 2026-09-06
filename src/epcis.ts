@@ -28,6 +28,7 @@
  * document's @context.
  */
 import type { BitEvent, EventSink } from "./events.ts";
+import { isJobKey, jobStep } from "./jobs.ts";
 
 export const VPB_NS = "https://skinnerboxentertainment.github.io/VoxelPixelThingie/ns/";
 export const EPCIS_CONTEXT = "https://ref.gs1.org/standards/epcis/epcis-context.jsonld";
@@ -164,6 +165,17 @@ export function toEpcisEvent(e: BitEvent, opts: EpcisOptions = {}): EpcisEvent {
       break;
     case "annotated":
       out["vpb:annotation"] = { key: e.key, value: e.value === undefined ? null : e.value };
+      if (isJobKey(e.key)) {
+        // Work is an observation with a sensor report carrying the record (SPEC.md §9.7).
+        // The job step is the business step, whatever cause the wrangler gave.
+        out.bizStep = `${VPB_NS}bizstep/${jobStep(e.key)}`;
+        out.sensorElementList = [
+          {
+            sensorMetadata: { time: iso(e.time) },
+            sensorReport: [{ type: "vpb:job", stringValue: JSON.stringify(e.value ?? null) }],
+          },
+        ];
+      }
       break;
     default:
       break;
