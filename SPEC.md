@@ -539,6 +539,7 @@ The model names no store. The reference sinks are:
 | `FileSink` | a folder, Node `fs` | the reference implementation of §10.6 |
 | `OpfsSink` | the browser's origin private file system | same layout, no server, per-origin |
 | `MemorySink` | an in-memory map of paths to strings | tests |
+| `FetchStore` | a URL prefix, read-only | a mirror on a static host, a raw git URL, or an IPFS gateway; lists bits from `manifest.ids` |
 
 A scene folder mirrored to a distributed store is still a scene. Git and
 GitHub give append-only history and a fingerprint per file for free. IPFS

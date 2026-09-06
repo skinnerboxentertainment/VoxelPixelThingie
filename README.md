@@ -44,7 +44,10 @@ Node 22 runs the TypeScript directly; there is no build step for the model.
 Other commands: `npm run typecheck`, `npm run lint`, `npm run test:coverage`,
 `npm run test:e2e`, `npm run bench`, `npm run bench:memory`,
 `npm run bench:frame` (needs `npm run build && npm run preview` running),
-`npm run docs:api`.
+`npm run docs:api`, `npm run scene:export -- <folder> [size]` (write a sealed
+scene), `npm run scene:check -- <folder> <url>` (the spime test across stores).
+A published scene lives at
+[VoxelPixelThingie-scenes](https://github.com/skinnerboxentertainment/VoxelPixelThingie-scenes).
 
 ## Read
 

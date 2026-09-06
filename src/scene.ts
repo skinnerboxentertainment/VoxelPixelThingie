@@ -239,6 +239,8 @@ export class SceneSink implements EventSink {
     m.updated = this.#now();
     m.bits = [...this.#passports.values()].filter((p) => !p.destroyed).length;
     m.ids = [...this.#passports.keys()].sort();
+    // Any write invalidates a seal; sealScene sets hashes again at publish time.
+    delete m.hashes;
     await this.store.write("manifest.json", `${JSON.stringify(m, null, 2)}\n`);
   }
 }

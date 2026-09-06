@@ -18,6 +18,8 @@
     "pretest:e2e:update": "npm run build",
     "preview": "vite preview",
     "rehearse": "node bench/rehearsal.mjs",
+    "scene:check": "node --experimental-strip-types scripts/mirror-check.ts",
+    "scene:export": "node --experimental-strip-types scripts/export-scene.ts",
     "test": "node --experimental-strip-types --test \"tests/**/*.test.ts\"",
     "test:coverage": "c8 --check-coverage --lines 85 --include \"src/**\" npm test",
     "test:e2e": "playwright test",
