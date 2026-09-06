@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/skinnerboxentertainment/VoxelPixelThingie/compare/v0.1.0...v0.2.0) (2026-09-06)
+
+
+### Features
+
+* compaction keeps a tail, drops derivable events, marks the manifest ([#49](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/49)) ([8db02f3](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/8db02f3746bcb8aa711f619c50d3de8fbad956fd))
+* opfs store, save and load, and a passport panel in the three.js demo ([#48](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/48)) ([2a245f5](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/2a245f51d707f744e1d52bb922322ce4ff0b401a))
+* passport blob with whole-replacement event and replay ([#44](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/44)) ([3be72fa](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/3be72faa0a4404b7e3e33f764205f0ae38740fde))
+* scene sink resume, attach after open, manifest ids ([#51](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/51)) ([c68755e](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/c68755e6f7700e6ea6b7fbaca4e7c443a9f65eb4))
+* scene sink, node file store, memory store, and openScene ([#47](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/47)) ([3548b6b](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/3548b6b17f93db988cd33c5ec7e1639555db9717))
+* url store, scene seal and verify, export and mirror-check scripts ([#52](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/52)) ([99abc68](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/99abc68e3f7d7af30274e96a74322402eb87a1b0))
+* uuid v7 ids, container ids, frame on every event, wrangler context ([#45](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/45)) ([2df76e8](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/2df76e875f33d532866e0aef190c45911a04f253))
+
 ## 0.1.0 (2026-09-06)
 
 
