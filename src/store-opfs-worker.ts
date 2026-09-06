@@ -27,7 +27,12 @@ export class OpfsWorkerStore implements FileStore {
 
   constructor(worker: WorkerLike, root: string) {
     this.#worker = worker;
-    this.root = root.replace(/^\/+|\/+$/g, "");
+    // Trim slashes without a regular expression: CodeQL flags the regex form as polynomial on untrusted input.
+    let a = 0;
+    let b = root.length;
+    while (a < b && root[a] === "/") a++;
+    while (b > a && root[b - 1] === "/") b--;
+    this.root = root.slice(a, b);
     worker.addEventListener("message", (ev) => {
       const r = ev.data as Reply;
       const p = this.#pending.get(r.id);
