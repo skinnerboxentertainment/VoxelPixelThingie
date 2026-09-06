@@ -591,3 +591,4 @@ same camera. That equality, across a round trip through any store, is what
 | 2026-09-05 | Orthographic cameras test facing against a direction, exclusively at the plane, so a straight-down view renders exactly 9 nodes per bit (§8.2). |
 | 2026-09-06 | Bits carry a free-form JSON passport, replaced whole by a `passport` event (§9.5). Ids default to UUID v7 for bits and containers (§9.1). Events carry `frame`, and optional `actor` and `cause` from a wrangler context (§9.2, §9.6). |
 | 2026-09-06 | Persistence is two files per bit, passport and ledger, in a folder per scene, written ledger-first, store-agnostic; compaction keeps a tail and may drop derivable link events (§10). Closes former open question 5. ADR 0006. |
+| 2026-09-06 | Packed scene variant `vpb-scene-pack/1` for stores that count files (§10.8, ADR 0006 amended). First IPFS pin recorded in the Phase 6 journal. |
