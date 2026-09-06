@@ -14,8 +14,12 @@ import {
   type BitHandle,
   type Container,
   type JsonObject,
+  MemoryStore,
   OpfsStore,
   openScene,
+  PackedStore,
+  packScene,
+  packToText,
   RecordingSink,
   type RenderItem,
   renderList,
@@ -35,7 +39,8 @@ const panel = document.getElementById("panel") as HTMLDivElement;
 const panelTitle = document.getElementById("panel-title")!;
 const passportBox = document.getElementById("passport") as HTMLTextAreaElement;
 const panelError = document.getElementById("panel-error")!;
-const SCENE_PATH = "vpb/scenes/three";
+const SCENE_DIR = "vpb/scenes";
+const SCENE_FILE = "three.pack.json";
 
 // ---------------------------------------------------------------- model
 
@@ -321,40 +326,55 @@ document.getElementById("remove")!.addEventListener("click", () => {
 
 // ---------------------------------------------------------------- save and load (SPEC.md §10, OpfsStore)
 
-async function save(): Promise<{ ok: boolean; reason?: string; events?: number }> {
+/**
+ * Save writes one packed file (SPEC.md §10.8): the scene is laid out in
+ * memory through a SceneSink, packed, and written with a single OPFS
+ * operation instead of one per bit file (PLAN-2.md Phase 8).
+ */
+async function save(): Promise<{ ok: boolean; reason?: string; events?: number; ms?: number }> {
   if (!recorder) return { ok: false, reason: `scenes above ${SAVE_MAX}³ are not recorded` };
   if (!OpfsStore.available()) return { ok: false, reason: "no origin private file system" };
+  const t0 = performance.now();
   status.textContent = "saving…";
-  await OpfsStore.remove(SCENE_PATH);
-  const store = await OpfsStore.open(SCENE_PATH);
-  const sink = new SceneSink(store);
+  const mem = new MemoryStore();
+  const sink = new SceneSink(mem);
   for (const e of recorder.events) sink.record(e);
   await sink.flush();
-  status.textContent = `saved ${recorder.events.length} events`;
-  return { ok: true, events: recorder.events.length };
+  const text = packToText(await packScene(mem));
+  const store = await OpfsStore.open(SCENE_DIR);
+  await store.write(SCENE_FILE, text);
+  const ms = performance.now() - t0;
+  status.textContent = `saved ${recorder.events.length} events, ${(text.length / 1048576).toFixed(1)} MB, ${ms.toFixed(0)} ms`;
+  return { ok: true, events: recorder.events.length, ms };
 }
 
-async function load(): Promise<{ ok: boolean; reason?: string; bits?: number }> {
+async function load(): Promise<{ ok: boolean; reason?: string; bits?: number; ms?: number }> {
   if (!OpfsStore.available()) return { ok: false, reason: "no origin private file system" };
-  let store: OpfsStore;
+  const t0 = performance.now();
+  let text: string | undefined;
   try {
-    store = await OpfsStore.open(SCENE_PATH, { create: false });
+    const store = await OpfsStore.open(SCENE_DIR, { create: false });
+    text = await store.read(SCENE_FILE);
   } catch {
+    text = undefined;
+  }
+  if (!text) {
     status.textContent = "nothing saved yet";
     return { ok: false, reason: "no saved scene" };
   }
   status.textContent = "loading…";
   try {
     recorder = new RecordingSink();
-    const loaded = await openScene(store, { sink: recorder });
+    const loaded = await openScene(PackedStore.fromText(text), { sink: recorder });
     grid = loaded;
     size = Math.max(8, Math.ceil(Math.cbrt(loaded.size)));
     select(null);
     cameraDirty = true;
     frameScene();
-    status.textContent = `loaded ${loaded.size} bits`;
+    const ms = performance.now() - t0;
+    status.textContent = `loaded ${loaded.size} bits, ${ms.toFixed(0)} ms`;
     if (!renderer) updateModel();
-    return { ok: true, bits: loaded.size };
+    return { ok: true, bits: loaded.size, ms };
   } catch (err) {
     status.textContent = `load failed: ${(err as Error).message}`;
     return { ok: false, reason: (err as Error).message };
