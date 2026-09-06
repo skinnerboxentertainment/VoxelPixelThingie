@@ -29,6 +29,7 @@
  */
 import type { BitEvent, EventSink } from "./events.ts";
 import { isJobKey, jobStep } from "./jobs.ts";
+import { isSenseKey, QUANTITIES, quantityOf, type Reading } from "./senses.ts";
 
 export const VPB_NS = "https://skinnerboxentertainment.github.io/VoxelPixelThingie/ns/";
 export const EPCIS_CONTEXT = "https://ref.gs1.org/standards/epcis/epcis-context.jsonld";
@@ -165,6 +166,31 @@ export function toEpcisEvent(e: BitEvent, opts: EpcisOptions = {}): EpcisEvent {
       break;
     case "annotated":
       out["vpb:annotation"] = { key: e.key, value: e.value === undefined ? null : e.value };
+      if (isSenseKey(e.key)) {
+        // A reading is a sensor report in the CBV vocabulary (SPEC.md §9.9): the standard
+        // fields, so any EPCIS system reads it as a sensor event without our extension.
+        const r = e.value as Reading;
+        const q = QUANTITIES[quantityOf(e.key)];
+        out.bizStep = out.bizStep ?? `${VPB_NS}bizstep/sensing`;
+        out.sensorElementList = [
+          {
+            sensorMetadata: {
+              time: iso(r.time),
+              ...(r.device ? { deviceID: deviceUri(r.device, VPB_NS) } : {}),
+            },
+            sensorReport: [
+              {
+                type: q?.type ?? `vpb:${quantityOf(e.key)}`,
+                value: r.value,
+                uom: r.uom,
+                ...(r.min !== undefined ? { minValue: r.min } : {}),
+                ...(r.max !== undefined ? { maxValue: r.max } : {}),
+              },
+            ],
+          },
+        ];
+        break;
+      }
       if (isJobKey(e.key)) {
         // Work is an observation with a sensor report carrying the record (SPEC.md §9.7).
         // The job step is the business step, whatever cause the wrangler gave.
@@ -214,4 +240,9 @@ export class EpcisSink implements EventSink {
   document(): EpcisDocument {
     return toEpcisDocument(this.events, this.#opts);
   }
+}
+
+/** A device name as a URI under the project namespace; a URI stays as it is. */
+function deviceUri(device: string, ns: string): string {
+  return /^[a-z][a-z0-9+.-]*:/i.test(device) ? device : `${ns}device/${slug(device)}`;
 }

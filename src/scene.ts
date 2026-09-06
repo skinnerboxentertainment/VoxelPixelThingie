@@ -21,6 +21,7 @@ import {
   refusalEvent,
   validatePolicyAnnotation,
 } from "./policy.ts";
+import { validateSenseAnnotation } from "./senses.ts";
 import { EDGE_SLOTS, NODE_COUNT, VERTEX_SLOTS } from "./slots.ts";
 import type { FileStore } from "./store.ts";
 import type { Emission, Vec3 } from "./vpb.ts";
@@ -214,6 +215,7 @@ export class SceneSink implements EventSink {
     if (event.type === "annotated") {
       validateJobAnnotation(event.key, event.value);
       validatePolicyAnnotation(event.key, event.value, event.actor);
+      validateSenseAnnotation(event.key, event.value);
     }
     let nextPolicy: Policy | undefined;
     if (event.type === "passport") {

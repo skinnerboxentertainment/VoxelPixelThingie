@@ -20,6 +20,7 @@ import {
 } from "../src/led-map.ts";
 
 export { LED_FRAME_FORMAT, type LedFramePost, parseFramePost } from "../src/led-map.ts";
+import { type Reading, readingFromWled, type WledSensor } from "../src/senses.ts";
 
 /**
  * Milliseconds since the epoch with sub-millisecond resolution, aligned to
@@ -114,6 +115,28 @@ export function latencyStats(values: readonly number[]): LatencyStats {
   const s = [...values].sort((a, b) => a - b);
   const at = (q: number) => s[Math.min(s.length - 1, Math.ceil(q * s.length) - 1)]!;
   return { n: s.length, p50: at(0.5), p95: at(0.95), max: s[s.length - 1]! };
+}
+
+/**
+ * A device's senses over its JSON API (PLAN-4.md Phase 21): WLED's
+ * `info.sensor` array, mapped to readings the bit records. A device that
+ * reports none, or has no JSON API, gives an empty list.
+ */
+export async function readWledSensors(
+  base: string,
+  opts: { timeoutMs?: number; now?: () => number } = {},
+): Promise<{ key: string; reading: Reading }[]> {
+  const now = opts.now ?? Date.now;
+  const res = await fetch(`${base.replace(/\/$/, "")}/json/info`, {
+    signal: AbortSignal.timeout(opts.timeoutMs ?? 2000),
+  });
+  if (!res.ok) throw new Error(`GET ${base}/json/info: ${res.status}`);
+  const info = (await res.json()) as { sensor?: WledSensor[]; name?: string };
+  const device = info.name ?? new URL(base).host;
+  const time = now();
+  return (info.sensor ?? [])
+    .map((s) => readingFromWled(s, time, device))
+    .filter((r): r is { key: string; reading: Reading } => r !== undefined);
 }
 
 export interface BridgeOptions {

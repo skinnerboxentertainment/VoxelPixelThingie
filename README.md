@@ -51,7 +51,8 @@ EPCIS 2.0 document, validated), `npm run scene:epcis:capture -- <out.json>`
 (capture it into a local OpenEPCIS and count it back),
 `npm run led:drive -- --host <wled ip> --scene <folder|pack> [--dry-run]`
 (light a physical bit over DDP, or `--listen` to bridge the Three.js demo
-with `?led=http://127.0.0.1:4049&bit=first`),
+with `?led=http://127.0.0.1:4049&bit=first`; `--senses [ms]` polls the
+device's sensors into the bit's ledger as `sense:*` readings),
 `npm run job:drive -- <folder> [--bit id] [--kind led-frame|epcis|links]`
 (ask a bit for work and watch request, result, audit, and reward land in
 its ledger), `npm run scene:sign -- <folder> --key <jwk> --host <host>`
@@ -62,6 +63,9 @@ a container key by a signed chain the old seals still verify through),
 `npm run scene:reader -- <folder|pack.json|builtin> <out.html>` (one HTML
 file carrying the reader, the packed scene, the SPEC, and the DID document;
 opens from disk with the network off and verifies the seal there),
+`npm run scene:search -- <folder> [--slot n] [--actor a] [--text words] ...`
+(ask the scene's memory: an index over the ledgers, built beside the
+manifest and rebuilt when the scene moves on),
 `npm run scene:policy -- <folder> <bit id>` (a bit's policy, the rules in
 its passport for who may change it, rendered as ODRL 2.2),
 `npm run mcp -- [--scene <folder>]` (serve the scene over the Model Context

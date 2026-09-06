@@ -18,7 +18,7 @@
  * a lower bound on click-to-photon, and it is named that way.
  *
  *   node --experimental-strip-types scripts/wled-sim.ts [--udp 4048] [--http 8790]
- *        [--bind 127.0.0.1] [--map file] [--timeout 2500] [--name vpb-sim] [--no-tty]
+ *        [--bind 127.0.0.1] [--map file] [--timeout 2500] [--name vpb-sim] [--no-tty] [--sensors]
  *
  * The first stdout line is JSON with the bound ports, for a test to read.
  */
@@ -83,6 +83,12 @@ export interface SimOptions {
   showIntervalMs?: number;
   /** Where frames go. Default: the terminal. Resolve when the bytes are accepted. */
   render?: (frame: Uint8Array, view: SimView) => Promise<void> | void;
+  /**
+   * Report fake senses in `info.sensor`, the draft shape WLED usermods use
+   * (PLAN-4.md Phase 21): a board temperature and an ambient illuminance
+   * that drift with uptime so successive readings differ.
+   */
+  sensors?: boolean | { temperature?: number; illuminance?: number };
 }
 
 export interface WledSim {
@@ -273,7 +279,17 @@ export async function startWledSim(opts: SimOptions = {}): Promise<WledSim> {
     uptime: Math.floor((Date.now() - startedAt) / 1000),
     brand: "WLED",
     product: "VoxelPixelBit simulator",
+    ...(opts.sensors ? { sensor: sensors() } : {}),
   });
+  const sensors = () => {
+    const base = typeof opts.sensors === "object" ? opts.sensors : {};
+    const up = (Date.now() - startedAt) / 1000;
+    const drift = Math.sin(up / 30);
+    return [
+      { type: "T", n: "board", val: Math.round(((base.temperature ?? 24) + drift * 0.5) * 10) / 10, unit: "°C", tm: Math.floor(up) },
+      { type: "L", n: "ambient", val: Math.round((base.illuminance ?? 320) + drift * 20), unit: "lx", tm: Math.floor(up) },
+    ];
+  };
   const stateJson = () => ({
     on: state.on,
     bri: state.bri,
@@ -442,6 +458,7 @@ if (process.argv[1] && /wled-sim\.ts$/.test(process.argv[1])) {
     ...(map ? { map } : {}),
     ...(flag("name") ? { name: flag("name")! } : {}),
     ...(noTty ? { render: () => {} } : {}),
+    ...(args.includes("--sensors") ? { sensors: true } : {}),
   });
   process.stdout.write(`${JSON.stringify({ udp: sim.udpPort, http: sim.httpPort })}\n`);
   const bye = async () => {
