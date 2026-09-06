@@ -7,8 +7,8 @@
  * behind the same contract.
  *
  * Work, then audit, then reward, in that order. A workload returns a value
- * or bytes and the check it ran; the pool stores big results by content
- * id, records the result, records the audit, and records a reward only when
+ * or bytes and the check it ran; the pool stores bytes by content id and
+ * inlines JSON values, records the result, records the audit, and records a reward only when
  * the audit passed. A workload that throws is a failed audit, not a lost
  * job.
  */
@@ -59,9 +59,6 @@ export interface ActorPool {
   /** Run one job per entry, with bounded concurrency across bits. */
   runAll(jobs: { bit: string; job: Job }[], concurrency?: number): Promise<JobAudit[]>;
 }
-
-/** Results at or under this many bytes are inlined; larger ones go to storage. */
-export const INLINE_LIMIT = 4 * 1024;
 
 // ---------------------------------------------------------------- workloads
 
@@ -219,15 +216,13 @@ export class InProcessPool implements ActorPool {
     }
     const ms = Math.round((performance.now() - t0) * 1000) / 1000;
 
+    // Bytes always go to storage by content id; only JSON values ride inline.
+    // (An array of hundreds of numbers inside an EPCIS extension broke a
+    // repository's identifier translator; a content id never will.)
     const result: JobResult = { id: job.id, ms, worker: this.name };
     if (outcome.bytes) {
-      if (outcome.bytes.length > INLINE_LIMIT) {
-        result.cid = await this.#storage.put(outcome.bytes);
-        result.bytes = outcome.bytes.length;
-      } else {
-        result.value = Array.from(outcome.bytes);
-        result.bytes = outcome.bytes.length;
-      }
+      result.cid = await this.#storage.put(outcome.bytes);
+      result.bytes = outcome.bytes.length;
     } else {
       result.value = outcome.value ?? null;
     }

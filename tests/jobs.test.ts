@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
-import { failingWorkload, INLINE_LIMIT, InProcessPool, WORKLOADS } from "../src/actor.ts";
+import { failingWorkload, InProcessPool, WORKLOADS } from "../src/actor.ts";
 import { toEpcisDocument } from "../src/epcis.ts";
 import { RecordingSink, replay, TeeSink } from "../src/events.ts";
 import { FlatGrid } from "../src/flat-grid.ts";
@@ -162,21 +162,24 @@ test("fifty jobs on fifty bits through the reference pool: every one ends in an 
     assert.equal(req.actor, "actor:in-process", "the ledger names the actor");
     assert.match(req.cause!, /^job /);
   }
-  // The EPCIS document is bigger than the inline limit, so it went to storage; the LED frame did not.
+  // Bytes results go to storage by id, JSON values stay inline.
   const epcisJob = jobsOf(recorder.events.filter((e) => e.bit === bits[1]!.id)).find(
     (x) => x.id === "job-1",
   )!;
-  assert.ok(
-    epcisJob.result!.cid && epcisJob.result!.bytes! > INLINE_LIMIT,
-    "epcis result stored by id",
-  );
+  assert.ok(epcisJob.result!.cid && epcisJob.result!.bytes! > 4096, "epcis result stored by id");
   const stored = await storage.get(epcisJob.result!.cid!);
   assert.ok(stored && stored.length === epcisJob.result!.bytes);
   const frameJob = jobsOf(recorder.events.filter((e) => e.bit === bits[0]!.id)).find(
     (x) => x.id === "job-0",
   )!;
-  assert.equal(frameJob.result!.cid, undefined);
-  assert.equal((frameJob.result!.value as number[]).length, 68 * 3);
+  assert.ok(frameJob.result!.cid, "the LED frame's bytes are stored by id too");
+  assert.equal(frameJob.result!.bytes, 68 * 3);
+  assert.equal((await storage.get(frameJob.result!.cid!))!.length, 68 * 3);
+  const linksJob = jobsOf(recorder.events.filter((e) => e.bit === bits[2]!.id)).find(
+    (x) => x.id === "job-2",
+  )!;
+  assert.equal(linksJob.result!.cid, undefined, "a JSON value rides inline");
+  assert.equal(typeof (linksJob.result!.value as { checked: number }).checked, "number");
 
   // A failing check: audit recorded as failed, no reward, the pool keeps going.
   const [failed] = await pool.runAll([{ bit: bits[0]!.id, job: { id: "job-x", kind: "fail" } }]);

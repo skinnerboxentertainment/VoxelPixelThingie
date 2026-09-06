@@ -30,9 +30,11 @@ does and everything a reader can find.
   words a stranger can repeat and says whether it passed; a reward is
   written only after an audit that passed. A workload that throws is a
   failed audit, not a lost job.
-- **Results by content id.** Anything over 4 KiB goes to a `Storage`
-  behind `put(bytes) → cid` and `get(cid)`, and the result record carries
-  the id. The id is a CIDv1 with the raw codec and a SHA-256 multihash,
+- **Results by content id.** Bytes always go to a `Storage` behind
+  `put(bytes) → cid` and `get(cid)`, and the result record carries the id;
+  only JSON values ride inline. (The first cut inlined small byte arrays;
+  an array of 204 numbers inside an EPCIS extension broke OpenEPCIS's
+  identifier translator, and a content id never will.) The id is a CIDv1 with the raw codec and a SHA-256 multihash,
   which is what IPFS gives a small raw-leaf file, so one id names the
   bytes wherever they sit. Memory and folder backends ship; any
   S3-compatible store or pinning service is one more backend.
