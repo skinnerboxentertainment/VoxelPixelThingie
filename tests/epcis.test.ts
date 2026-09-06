@@ -103,7 +103,8 @@ test("fields: identifiers, readPoint, bizStep from cause, actor as owning party,
   assert.equal(carved.disposition, "inactive");
   assert.match(String(carved.bizStep), /bizstep\/carve-the-tunnel$/);
   assert.deepEqual(carved.sourceList, [{ type: "owning_party", source: "urn:vpb:actor:oscar" }]);
-  const emitted = list.find((e) => e["vpb:type"] === "emitted" && e["vpb:slot"] === 9)!;
+  // The fill lights slot 9 first; the carve sequence emits it again with data. Take the last.
+  const emitted = list.filter((e) => e["vpb:type"] === "emitted" && e["vpb:slot"] === 9).at(-1)!;
   const report = (emitted.sensorElementList as { sensorReport: Record<string, unknown>[] }[])[0]!
     .sensorReport;
   assert.deepEqual(
