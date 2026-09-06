@@ -16,6 +16,8 @@ import {
   type JsonObject,
   MemoryStore,
   OpfsStore,
+  OpfsWorkerStore,
+  OverlayStore,
   openScene,
   PackedStore,
   packScene,
@@ -25,6 +27,7 @@ import {
   renderList,
   SceneSink,
   signsOf,
+  TeeSink,
 } from "../../src/index.ts";
 import { COLORS, referenceScene, sceneCenter } from "../shared/scene.ts";
 
@@ -41,6 +44,9 @@ const passportBox = document.getElementById("passport") as HTMLTextAreaElement;
 const panelError = document.getElementById("panel-error")!;
 const SCENE_DIR = "vpb/scenes";
 const SCENE_FILE = "three.pack.json";
+const AUTOSAVE_ROOT = "vpb/scenes/three-autosave";
+const autosaveBox = document.getElementById("autosave") as HTMLInputElement;
+const loadAutosaveButton = document.getElementById("load-autosave") as HTMLButtonElement;
 
 // ---------------------------------------------------------------- model
 
@@ -384,6 +390,105 @@ async function load(): Promise<{ ok: boolean; reason?: string; bits?: number; ms
 saveButton.addEventListener("click", () => void save());
 loadButton.addEventListener("click", () => void load());
 
+// ---------------------------------------------------------------- autosave (PLAN-2.md Phase 8, OpfsWorkerStore)
+
+let autosaveStore: OpfsWorkerStore | null = null;
+let autosaveSink: SceneSink | null = null;
+const AUTOSAVE_BASE = "base.pack.json";
+
+function workerStore(): OpfsWorkerStore {
+  if (!autosaveStore) {
+    const worker = new Worker(new URL("../../src/opfs-worker.ts", import.meta.url), {
+      type: "module",
+    });
+    autosaveStore = new OpfsWorkerStore(worker, AUTOSAVE_ROOT);
+  }
+  return autosaveStore;
+}
+
+/**
+ * Turn autosave on: start a fresh autosaved scene from the recorder's
+ * events, then tee every new event to a scene sink over the worker store.
+ * Off: the recorder alone.
+ */
+async function setAutosave(on: boolean): Promise<{ ok: boolean; reason?: string; ms?: number }> {
+  autosaveBox.checked = on;
+  if (!on) {
+    autosaveSink = null;
+    if (recorder) grid.attachSink(recorder);
+    status.textContent = "autosave off";
+    return { ok: true };
+  }
+  if (!recorder) return { ok: false, reason: `scenes above ${SAVE_MAX}³ are not recorded` };
+  if (!OpfsStore.available()) return { ok: false, reason: "no origin private file system" };
+  const t0 = performance.now();
+  status.textContent = "autosave: writing the scene…";
+  // Seed: the whole scene as one packed base file, one file operation.
+  // Then every edit goes to a delta folder through the overlay.
+  const mem = new MemoryStore();
+  const seedSink = new SceneSink(mem);
+  for (const e of recorder.events) seedSink.record(e);
+  await seedSink.flush();
+  const text = packToText(await packScene(mem));
+  const ws = workerStore();
+  await ws.remove();
+  await ws.write(AUTOSAVE_BASE, text);
+  const overlay = OverlayStore.fresh(PackedStore.fromText(text), ws);
+  const sink = await SceneSink.resume(overlay);
+  autosaveSink = sink;
+  grid.attachSink(new TeeSink([recorder, sink]));
+  const ms = performance.now() - t0;
+  status.textContent = `autosave on, ${ms.toFixed(0)} ms to seed`;
+  return { ok: true, ms };
+}
+
+async function autosaveFlush(): Promise<{ ok: boolean; events: number }> {
+  if (autosaveSink) await autosaveSink.flush();
+  return { ok: Boolean(autosaveSink), events: recorder?.events.length ?? -1 };
+}
+
+async function loadAutosave(): Promise<{
+  ok: boolean;
+  reason?: string;
+  bits?: number;
+  ms?: number;
+}> {
+  if (!OpfsStore.available()) return { ok: false, reason: "no origin private file system" };
+  const t0 = performance.now();
+  const ws = workerStore();
+  const baseText = await ws.read(AUTOSAVE_BASE);
+  if (!baseText) {
+    status.textContent = "no autosaved scene";
+    return { ok: false, reason: "no autosaved scene" };
+  }
+  status.textContent = "loading autosave…";
+  try {
+    const store = await OverlayStore.open(PackedStore.fromText(baseText), ws);
+    recorder = new RecordingSink();
+    const loaded = await openScene(store, { sink: recorder });
+    grid = loaded;
+    size = Math.max(8, Math.ceil(Math.cbrt(loaded.size)));
+    select(null);
+    cameraDirty = true;
+    frameScene();
+    if (autosaveBox.checked) {
+      // Continue the same scene rather than seeding a new one.
+      autosaveSink = await SceneSink.resume(store);
+      grid.attachSink(new TeeSink([recorder, autosaveSink]));
+    }
+    const ms = performance.now() - t0;
+    status.textContent = `loaded autosave, ${loaded.size} bits, ${ms.toFixed(0)} ms`;
+    if (!renderer) updateModel();
+    return { ok: true, bits: loaded.size, ms };
+  } catch (err) {
+    status.textContent = `load failed: ${(err as Error).message}`;
+    return { ok: false, reason: (err as Error).message };
+  }
+}
+
+autosaveBox.addEventListener("change", () => void setAutosave(autosaveBox.checked));
+loadAutosaveButton.addEventListener("click", () => void loadAutosave());
+
 function removeBit(bit: BitHandle): void {
   grid.remove(bit);
   cameraDirty = true;
@@ -397,6 +502,7 @@ function loadSize(n: number): void {
   grid = makeScene(size);
   select(null);
   cameraDirty = true;
+  if (autosaveBox.checked) void setAutosave(true);
   frameScene();
   frameTimes.length = 0;
   lastFrame = performance.now();
@@ -443,6 +549,9 @@ resetButton.addEventListener("click", () => loadSize(size));
   backend: () => backend,
   save,
   load,
+  autosave: setAutosave,
+  autosaveFlush,
+  loadAutosave,
   selectFirstFaceBit: () => {
     const bit = faces.bits[0];
     if (bit) select(bit);
@@ -463,4 +572,5 @@ frameScene();
 updateModel();
 updateHud();
 await initRenderer();
+if (new URLSearchParams(location.search).get("autosave") === "1") await setAutosave(true);
 if (!renderer) document.body.dataset.ready = "1";
