@@ -11,7 +11,8 @@ import { pass } from "three/tsl";
 import * as THREE from "three/webgpu";
 import {
   type BitEvent,
-  type Grid,
+  type BitHandle,
+  type Container,
   type JsonObject,
   OpfsStore,
   openScene,
@@ -20,7 +21,6 @@ import {
   renderList,
   SceneSink,
   signsOf,
-  type VoxelPixelBit,
 } from "../../src/index.ts";
 import { COLORS, referenceScene, sceneCenter } from "../shared/scene.ts";
 
@@ -43,11 +43,11 @@ let size = 8;
 /** Sizes that record a full ledger and can be saved; larger scenes render only. */
 const SAVE_MAX = 16;
 let recorder: RecordingSink | null = null;
-let grid: Grid = makeScene(size);
+let grid: Container = makeScene(size);
 let cameraDirty = true;
-let selected: VoxelPixelBit | null = null;
+let selected: BitHandle | null = null;
 
-function makeScene(n: number): Grid {
+function makeScene(n: number): Container {
   recorder = n <= SAVE_MAX ? new RecordingSink() : null;
   return referenceScene(n, recorder ?? undefined);
 }
@@ -69,7 +69,7 @@ const glowMat = new THREE.MeshBasicMaterial();
 
 class Layer {
   mesh: InstancedMeshT;
-  bits: VoxelPixelBit[] = [];
+  bits: BitHandle[] = [];
   readonly geo: THREE.BufferGeometry;
   readonly mat: THREE.Material;
   constructor(geo: THREE.BufferGeometry, mat: THREE.Material, capacity: number) {
@@ -290,7 +290,7 @@ canvas.addEventListener("pointerup", (e) => {
 
 // ---------------------------------------------------------------- passport panel
 
-function select(bit: VoxelPixelBit | null): void {
+function select(bit: BitHandle | null): void {
   selected = bit;
   panel.hidden = !bit;
   panelError.textContent = "";
@@ -364,7 +364,7 @@ async function load(): Promise<{ ok: boolean; reason?: string; bits?: number }> 
 saveButton.addEventListener("click", () => void save());
 loadButton.addEventListener("click", () => void load());
 
-function removeBit(bit: VoxelPixelBit): void {
+function removeBit(bit: BitHandle): void {
   grid.remove(bit);
   cameraDirty = true;
   if (!renderer) {
@@ -401,7 +401,7 @@ resetButton.addEventListener("click", () => loadSize(size));
     // Deterministic removal: a visible bit in the interior of a face, so the
     // pit it leaves exposes the enclosed bit beneath it and its four sides.
     const interior = (c: number) => c > 0 && c < size - 1;
-    let best: VoxelPixelBit | undefined;
+    let best: BitHandle | undefined;
     let bestScore = -1;
     for (const b of faces.bits) {
       const score = b.position.filter(interior).length;

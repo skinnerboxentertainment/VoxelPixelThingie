@@ -7,6 +7,7 @@
  */
 import { Application, BlurFilter, Graphics } from "pixi.js";
 import {
+  type BitHandle,
   EDGE_SLOTS,
   Grid,
   localCenterOf,
@@ -16,7 +17,6 @@ import {
   signsOf,
   VERTEX_SLOTS,
   type Vec3,
-  type VoxelPixelBit,
 } from "../../src/index.ts";
 import { COLORS } from "../shared/scene.ts";
 import {
@@ -80,7 +80,7 @@ glow.filters = [new BlurFilter({ strength: 7, quality: 4 })];
 glow.blendMode = "add";
 app.stage.addChild(faces, glow, lines);
 
-function faceCorners(bit: VoxelPixelBit, slot: number): Vec3[] {
+function faceCorners(bit: BitHandle, slot: number): Vec3[] {
   const signs = signsOf(slot);
   const axis = signs.findIndex((s) => s !== null);
   const others = [0, 1, 2].filter((a) => a !== axis);
@@ -99,14 +99,14 @@ function faceCorners(bit: VoxelPixelBit, slot: number): Vec3[] {
   });
 }
 
-function edgeEnds(bit: VoxelPixelBit, slot: number): Vec3[] {
+function edgeEnds(bit: BitHandle, slot: number): Vec3[] {
   return nodeVertices(slot).map((v) => {
     const c = localCenterOf(v);
     return [bit.position[0] + c[0], bit.position[1] + c[1], bit.position[2] + c[2]];
   });
 }
 
-let picks: { bit: VoxelPixelBit; pts: { x: number; y: number }[] }[] = [];
+let picks: { bit: BitHandle; pts: { x: number; y: number }[] }[] = [];
 let lastCounts = { face: 0, edge: 0, vertex: 0, nodes: 0 };
 
 function draw(): void {
@@ -117,7 +117,7 @@ function draw(): void {
   const project = projector(view, basis, canvas.width, canvas.height);
   // Pixel mode has no perspective, so depth is shown as a small screen shift per layer.
   const parallax = view.mode === "pixel" ? 5 : 0;
-  const proj = (p: Vec3, bit: VoxelPixelBit) => {
+  const proj = (p: Vec3, bit: BitHandle) => {
     const s = project(p);
     return {
       x: s.x - bit.position[2] * parallax,
@@ -126,7 +126,7 @@ function draw(): void {
     };
   };
 
-  const byBit = new Map<VoxelPixelBit, RenderItem[]>();
+  const byBit = new Map<BitHandle, RenderItem[]>();
   for (const it of items) {
     let arr = byBit.get(it.bit);
     if (!arr) {

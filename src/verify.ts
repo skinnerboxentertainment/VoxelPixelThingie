@@ -5,7 +5,7 @@
  * over everything a round trip must reproduce, for comparing a scene opened
  * from two stores.
  */
-import type { Grid } from "./grid.ts";
+import type { Container } from "./container.ts";
 import { ledgerPath, mapLimit, passportPath, readManifest } from "./scene.ts";
 import type { FileStore } from "./store.ts";
 import type { Camera } from "./vpb.ts";
@@ -62,28 +62,13 @@ export async function verifyScene(store: FileStore): Promise<VerifyReport> {
 }
 
 /** Everything SPEC.md §10.9 says a round trip must reproduce, in a stable shape. */
-export function sceneCanonical(grid: Grid, camera: Camera = { position: [20, 10, 30] }) {
+export function sceneCanonical(grid: Container, camera: Camera = { position: [20, 10, 30] }) {
   grid.evaluate(camera);
-  return {
-    scene: grid.id,
-    bits: [...grid.bits()]
-      .map((b) => ({
-        id: b.id,
-        position: b.position,
-        present: b.present,
-        color: b.color,
-        passport: b.passport,
-        emissions: b.nodes.map((n) => n.emission),
-        links: b.nodes.map((n) => n.links.map((l) => `${l.bit.id}:${l.slot}`).sort()),
-        renderCycle: b.renderCycle,
-        renderEnabled: b.nodes.map((n) => n.renderEnabled),
-      }))
-      .sort((a, b) => (a.id < b.id ? -1 : 1)),
-  };
+  return { scene: grid.id, bits: grid.snapshot() };
 }
 
 /** One hash over sceneCanonical. Equal digests from two stores mean the same bits. */
-export async function sceneDigest(grid: Grid, camera?: Camera): Promise<string> {
+export async function sceneDigest(grid: Container, camera?: Camera): Promise<string> {
   return sha256Hex(JSON.stringify(sceneCanonical(grid, camera)));
 }
 
