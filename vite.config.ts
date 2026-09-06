@@ -17,6 +17,7 @@ export default defineConfig({
         three: resolve(demo, "three/index.html"),
         pixi: resolve(demo, "pixi/index.html"),
         passport: resolve(demo, "passport/index.html"),
+        reader: resolve(demo, "reader/index.html"),
       },
     },
   },

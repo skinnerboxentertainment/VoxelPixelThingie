@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VPB reader</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; background: #0b0f19; color: #c9d1d9; font: 14px/1.5 system-ui, sans-serif; }
+      main { max-width: 1100px; margin: 3vh auto; padding: 0 20px; }
+      h1 { font-weight: 600; font-size: 20px; margin: 0 0 4px; }
+      h2 { font-weight: 600; font-size: 15px; margin: 22px 0 8px; color: #8b949e; }
+      h3 { font-weight: 600; font-size: 14px; margin: 14px 0 6px; }
+      .muted { color: #8b949e; }
+      code, pre, .mono { font-family: ui-monospace, monospace; }
+      pre { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 0; white-space: pre-wrap; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #21262d; vertical-align: top; }
+      th { color: #8b949e; font-weight: 500; }
+      .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid #30363d; vertical-align: -2px; margin-right: 6px; }
+      input, button { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 4px 8px; font: inherit; }
+      button { cursor: pointer; }
+      button:focus-visible, input:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid #58a6ff; outline-offset: 2px; }
+      form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      form input { flex: 1 1 320px; }
+      #status { min-height: 1.5em; }
+      .bad { color: #f85149; } .good { color: #3fb950; }
+      .layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+      @media (max-width: 760px) { .layout { grid-template-columns: 1fr; } }
+      #bits { list-style: none; margin: 0; padding: 0; max-height: 70vh; overflow: auto; border: 1px solid #30363d; border-radius: 8px; }
+      #bits li { margin: 0; }
+      #bits button { display: block; width: 100%; text-align: left; border: 0; border-bottom: 1px solid #21262d; border-radius: 0; background: transparent; padding: 5px 10px; font-family: ui-monospace, monospace; font-size: 12px; }
+      #bits button[aria-current="true"] { background: #1f2937; }
+      #bits button.absent { color: #8b949e; }
+      .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; border: 1px solid #30363d; font-size: 12px; }
+      .present { color: #3fb950; } .absent { color: #f85149; }
+      details { border: 1px solid #30363d; border-radius: 8px; padding: 6px 12px; margin-top: 12px; }
+      summary { cursor: pointer; color: #8b949e; }
+      .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    </style>
+    <!--vpb:embed-->
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>VoxelPixelBit scene reader</h1>
+        <p class="muted">A scene, its bits, their passports and histories, and the proof that none of it was changed. This page needs nothing else: when a scene is embedded in it, it works with the network off.</p>
+      </header>
+      <form id="open" aria-label="open a scene by URL">
+        <label for="scene">scene URL</label>
+        <input id="scene" name="scene" placeholder="a scene folder URL, a .json pack URL, or builtin" />
+        <button type="submit">open</button>
+      </form>
+      <p id="status" role="status" aria-live="polite"></p>
+      <section id="scene-section" hidden aria-labelledby="scene-heading">
+        <h2 id="scene-heading">Scene</h2>
+        <table aria-label="scene summary">
+          <tr><th scope="row">container</th><td class="mono" id="s-id"></td></tr>
+          <tr><th scope="row">source</th><td id="s-source"></td></tr>
+          <tr><th scope="row">bits</th><td class="mono" id="s-bits"></td></tr>
+          <tr><th scope="row">digest</th><td class="mono" id="s-digest"></td></tr>
+          <tr><th scope="row">seal</th><td id="s-seal"></td></tr>
+          <tr><th scope="row">signature</th><td id="s-signature"></td></tr>
+        </table>
+        <p><button type="button" id="verify">verify again</button></p>
+        <div class="layout">
+          <div>
+            <h2 id="bits-heading">Bits</h2>
+            <label for="filter" class="sr-only">filter bits by id or position</label>
+            <input id="filter" placeholder="filter by id or position" aria-controls="bits" />
+            <ul id="bits" aria-labelledby="bits-heading"></ul>
+          </div>
+          <section id="bit" hidden aria-labelledby="bit-heading">
+            <h2 id="bit-heading">Bit</h2>
+            <table aria-label="identity">
+              <tr><th scope="row">bit</th><td class="mono" id="f-id"></td></tr>
+              <tr><th scope="row">position</th><td class="mono" id="f-position"></td></tr>
+              <tr><th scope="row">state</th><td id="f-state"></td></tr>
+              <tr><th scope="row">color</th><td id="f-color"></td></tr>
+              <tr><th scope="row">last event</th><td class="mono" id="f-seq"></td></tr>
+              <tr><th scope="row">EPCIS id</th><td class="mono" id="f-epc"></td></tr>
+            </table>
+            <h3>Passport</h3>
+            <pre id="f-passport"></pre>
+            <h3>Emissions, 26 nodes</h3>
+            <table id="f-emissions"><thead><tr><th scope="col">slot</th><th scope="col">node</th><th scope="col">color</th><th scope="col">light</th><th scope="col">data</th></tr></thead><tbody></tbody></table>
+            <h3>History</h3>
+            <table id="f-events"><thead><tr><th scope="col">seq</th><th scope="col">type</th><th scope="col">time</th><th scope="col">detail</th><th scope="col">actor</th><th scope="col">cause</th></tr></thead><tbody></tbody></table>
+          </section>
+        </div>
+        <details id="did-details" hidden>
+          <summary>DID document carried in this file</summary>
+          <pre id="did-doc"></pre>
+        </details>
+        <details id="spec-details" hidden>
+          <summary>Specification carried in this file</summary>
+          <pre id="spec-text"></pre>
+        </details>
+      </section>
+      <p class="muted">Source: <a href="https://github.com/skinnerboxentertainment/VoxelPixelThingie">github.com/skinnerboxentertainment/VoxelPixelThingie</a></p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
