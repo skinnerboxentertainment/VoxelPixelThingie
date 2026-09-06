@@ -21,9 +21,20 @@ import {
 
 export { LED_FRAME_FORMAT, type LedFramePost, parseFramePost } from "../src/led-map.ts";
 
+/**
+ * Milliseconds since the epoch with sub-millisecond resolution, aligned to
+ * the wall clock at startup. Node's performance.timeOrigin can sit seconds
+ * away from Date.now() on Windows, and stamps from different processes
+ * (the browser, the bridge, the simulator) have to share one clock.
+ */
+const WALL_OFFSET = Date.now() - (performance.timeOrigin + performance.now());
+export const wallNow = (): number => performance.timeOrigin + performance.now() + WALL_OFFSET;
+
 export interface SendResult {
   packets: number;
   bytes: number;
+  /** DDP sequence number of the frame's first packet, 1..15. */
+  sequence: number;
   /** performance.timeOrigin + performance.now() when the last packet was handed to the socket. */
   sentAt: number;
 }
@@ -34,6 +45,8 @@ export class DdpSender {
   readonly port: number;
   #socket: dgram.Socket | undefined;
   #sequence = 1;
+  /** Sends run one frame at a time so two callers never interleave a multi-packet frame. */
+  #queue: Promise<unknown> = Promise.resolve();
   readonly dryRun: boolean;
   /** Set in dry runs: the packets that would have gone out, hex. */
   readonly dryPackets: string[] = [];
@@ -45,8 +58,15 @@ export class DdpSender {
     if (!this.dryRun) this.#socket = opts.socket ?? dgram.createSocket("udp4");
   }
 
-  async send(frame: Uint8Array): Promise<SendResult> {
-    const packets = ddpFrame(frame, { sequence: this.#sequence });
+  send(frame: Uint8Array): Promise<SendResult> {
+    const run = this.#queue.then(() => this.#sendNow(frame));
+    this.#queue = run.catch(() => {});
+    return run;
+  }
+
+  async #sendNow(frame: Uint8Array): Promise<SendResult> {
+    const sequence = this.#sequence;
+    const packets = ddpFrame(frame, { sequence });
     this.#sequence = nextSequence(this.#sequence + packets.length - 1);
     let bytes = 0;
     for (const p of packets) {
@@ -59,7 +79,7 @@ export class DdpSender {
         this.#socket!.send(p, this.port, this.host, (err) => (err ? reject(err) : resolve())),
       );
     }
-    return { packets: packets.length, bytes, sentAt: performance.timeOrigin + performance.now() };
+    return { packets: packets.length, bytes, sequence, sentAt: wallNow() };
   }
 
   close(): void {
@@ -70,6 +90,12 @@ export class DdpSender {
 
 export interface LatencySample {
   bit: string;
+  /** DDP sequence of the frame's first packet, to join with a receiver's samples. */
+  sequence: number;
+  /** The poster's event time, ms since the epoch. */
+  eventTime: number;
+  /** When the last packet was handed to the socket, ms since the epoch. */
+  sentAt: number;
   /** Demo event time to the packet leaving, ms. */
   eventToPacket: number;
   /** Bridge receipt to the packet leaving, ms. */
@@ -150,7 +176,7 @@ export async function startBridge(opts: BridgeOptions = {}): Promise<Bridge> {
       res.end();
       return;
     }
-    const receivedAt = performance.timeOrigin + performance.now();
+    const receivedAt = wallNow();
     const chunks: Buffer[] = [];
     req.on("data", (c: Buffer) => chunks.push(c));
     req.on("end", () => {
@@ -160,8 +186,11 @@ export async function startBridge(opts: BridgeOptions = {}): Promise<Bridge> {
           const m = post.map ?? map;
           const frame = m === map ? ledFrame(post, m, buffer) : ledFrame(post, m);
           const sent = await sender.send(frame);
-          const sample = {
+          const sample: LatencySample = {
             bit: post.bit,
+            sequence: sent.sequence,
+            eventTime: post.time,
+            sentAt: sent.sentAt,
             eventToPacket: sent.sentAt - post.time,
             receiptToPacket: sent.sentAt - receivedAt,
           };

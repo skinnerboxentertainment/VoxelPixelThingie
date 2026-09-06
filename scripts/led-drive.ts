@@ -7,6 +7,7 @@
  *       run the bridge the Three.js demo posts to (demo/three/?led=http://127.0.0.1:4049&bit=<id>)
  *   add --dry-run to print the packets instead of sending them
  *   add --map <led-map.json> to use a map other than the bit's passport or the default
+ *   add --http-port <n> for the device's JSON API (default 80; 0 skips the probe)
  *
  * The map comes from, in order: --map, the bit's passport `ledMap`, the
  * plan's 68-LED default.
@@ -30,12 +31,47 @@ const has = (name: string) => args.includes(`--${name}`);
 
 const host = flag("host") ?? "127.0.0.1";
 const port = Number(flag("port") ?? DDP_PORT);
+const httpPort = Number(flag("http-port") ?? 80);
 const dryRun = has("dry-run");
 const mapFile = flag("map");
 const mapArg: LedMap | undefined = mapFile ? ledMapFromJson(await fs.readFile(mapFile, "utf8")) : undefined;
 
+/**
+ * Ask the device what it is before sending: WLED's /json/info and /json/state.
+ * A strip that answers DDP but not HTTP is still a strip, so this only notes.
+ */
+async function probe(expectLeds: number | undefined): Promise<void> {
+  if (httpPort === 0 || dryRun) return;
+  const base = `http://${host}:${httpPort}`;
+  try {
+    const signal = AbortSignal.timeout(1000);
+    const info = (await (await fetch(`${base}/json/info`, { signal })).json()) as {
+      ver?: string;
+      leds?: { count?: number };
+      live?: boolean;
+      lm?: string;
+      lip?: string;
+      product?: string;
+    };
+    const state = (await (await fetch(`${base}/json/state`, { signal })).json()) as {
+      on?: boolean;
+      bri?: number;
+      lor?: number;
+    };
+    console.log(
+      `device ${info.product ?? "WLED"} ${info.ver ?? "?"} at ${host}: ${info.leds?.count ?? "?"} LEDs, ${info.live ? `live ${info.lm ?? ""} from ${info.lip ?? ""}` : "idle"}, on ${state.on ? "yes" : "no"}, bri ${state.bri ?? "?"}, lor ${state.lor ?? 0}`,
+    );
+    if (expectLeds !== undefined && info.leds?.count !== undefined && info.leds.count !== expectLeds)
+      console.warn(`warning: the device has ${info.leds.count} LEDs but the map expects ${expectLeds}`);
+    if (state.lor) console.warn("warning: live override is set; the device will ignore pixel data");
+  } catch (err) {
+    console.log(`no JSON API at ${base} (${(err as Error).name}); sending anyway`);
+  }
+}
+
 if (has("listen")) {
   const listen = Number(flag("listen") || 4049);
+  await probe(mapArg?.leds);
   const bridge = await startBridge({
     host,
     port,
@@ -69,6 +105,7 @@ if (has("listen")) {
     process.exit(1);
   }
   const map = mapArg ?? ledMapOf(bit.passport) ?? defaultLedMap();
+  await probe(map.leds);
   const frame = ledFrame(bit.record(), map);
   const lit = Array.from({ length: map.leds }, (_, i) => frame[i * 3]! | frame[i * 3 + 1]! | frame[i * 3 + 2]!).filter(Boolean).length;
   const sender = new DdpSender(host, port, { dryRun });

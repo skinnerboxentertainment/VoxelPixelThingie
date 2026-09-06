@@ -250,6 +250,11 @@ changes; this is one more wrangler.
 4. The QR: a GS1 Digital Link style URL to
    `<pages>/passport/?id=<bit id>`, plus a small passport page in the demo.
 5. Journal with the video timestamp measurement.
+6. Added 2026-09-06, while the parts are on order: a WLED emulator in the
+   terminal (`scripts/wled-sim.ts`, ticket #76) that takes real DDP with
+   WLED's rules and answers its JSON API, so the driver and the bridge are
+   developed against it as if it were the device, and the measurement
+   extends to click→terminal-write. It does not claim the hardware oracle.
 
 **Exit review.** `/teachback` on the DDP path, no editor open: what
 happens between a click in the browser and a photon.

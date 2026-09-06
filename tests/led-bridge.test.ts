@@ -85,6 +85,32 @@ test("DdpSender sends one packet per frame to the display and sequences 1..15", 
   assert.deepEqual(ledRangeOf(decodeDdp(display.packets[0]!).header), { start: 0, stop: 68 });
 });
 
+test("overlapping sends never interleave a multi-packet frame; results carry the sequence", async () => {
+  const display = await fakeDisplay();
+  const sender = new DdpSender("127.0.0.1", display.port);
+  try {
+    const a = new Uint8Array(600 * 3).fill(0xaa);
+    const b = new Uint8Array(600 * 3).fill(0xbb);
+    const [ra, rb] = await Promise.all([sender.send(a), sender.send(b)]);
+    assert.equal(ra.sequence, 1);
+    assert.equal(rb.sequence, 3);
+    await display.waitFor(4);
+    const got = display.packets.map((p) => decodeDdp(p));
+    assert.deepEqual(
+      got.map((g) => [g.header.sequence, g.header.push, g.data[0]]),
+      [
+        [1, false, 0xaa],
+        [2, true, 0xaa],
+        [3, false, 0xbb],
+        [4, true, 0xbb],
+      ],
+    );
+  } finally {
+    sender.close();
+    display.close();
+  }
+});
+
 test("a dry-run sender keeps the hex instead of opening a socket", async () => {
   const sender = new DdpSender("192.0.2.1", 4048, { dryRun: true });
   const sent = await sender.send(new Uint8Array([1, 2, 3]));
@@ -139,6 +165,14 @@ test("the bridge: the demo posts a bit, the display gets its bytes, the latency 
     await display.waitFor(102);
     const stats = bridge.stats();
     assert.equal(stats.eventToPacket.n, 102);
+    const first = bridge.samples[0]!;
+    assert.equal(first.sequence, 1, "samples carry the DDP sequence");
+    assert.equal(first.eventTime, t0);
+    assert.ok(first.sentAt >= first.eventTime);
+    assert.deepEqual(
+      bridge.samples.slice(0, 16).map((s) => s.sequence),
+      [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 1],
+    );
     assert.ok(stats.eventToPacket.p50 >= 0);
     assert.ok(
       stats.receiptToPacket.max < 1000,

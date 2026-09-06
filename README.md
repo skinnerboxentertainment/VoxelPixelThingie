@@ -51,7 +51,11 @@ EPCIS 2.0 document, validated), `npm run scene:epcis:capture -- <out.json>`
 (capture it into a local OpenEPCIS and count it back),
 `npm run led:drive -- --host <wled ip> --scene <folder|pack> [--dry-run]`
 (light a physical bit over DDP, or `--listen` to bridge the Three.js demo
-with `?led=http://127.0.0.1:4049&bit=first`).
+with `?led=http://127.0.0.1:4049&bit=first`),
+`node --experimental-strip-types scripts/wled-sim.ts` (a WLED emulator in
+the terminal, UDP 4048 and a JSON API on 8790, so the driver runs with no
+hardware: pass `--http-port 8790` to `led:drive`; invoked directly because
+`npm run` under cmd.exe asks before honoring Ctrl-C).
 A published scene lives at
 [VoxelPixelThingie-scenes](https://github.com/skinnerboxentertainment/VoxelPixelThingie-scenes).
 

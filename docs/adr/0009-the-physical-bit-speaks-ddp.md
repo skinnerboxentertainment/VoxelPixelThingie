@@ -52,3 +52,21 @@ Read on 2026-09-06: the DDP specification at 3waylabs.com/ddp, WLED's
 - The hardware oracle in PLAN-2.md (a carved face goes dark within a frame,
   on video) waits on parts; the software oracle runs in CI: packet bytes
   for the reference bit and a latency distribution over a hundred posts.
+
+## Amendment, 2026-09-06: a simulated physical bit
+
+Until the parts arrive, `scripts/wled-sim.ts` stands in for the device. It
+listens for DDP with WLED's own receive rules (read from wled00/e131.cpp,
+udp.cpp, json.cpp, cfg.cpp), keeps WLED's realtime timeout and brightness
+behavior, answers the JSON API a driver reads, and draws the bit as an
+unfolded cube in the terminal (`scripts/cube-net.ts`, cells derived from
+slot geometry so shared edges and corners agree by construction). The
+driver, the bridge, and the Three.js demo are developed against it as if
+it were the device.
+
+Two limits are part of the decision. It is not hardware: no Wi-Fi jitter,
+strip timing, color order, or power, so it does not claim the oracles on
+#72 and #73. And the latency it can stamp ends when a frame's bytes are
+accepted by the terminal, before the terminal composites; that number is
+called **click→terminal-write**, a lower bound on click→photon, and is never
+reported under the longer name.
