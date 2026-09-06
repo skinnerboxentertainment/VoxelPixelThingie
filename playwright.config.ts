@@ -4,6 +4,9 @@ export default defineConfig({
   testDir: "tests/e2e",
   snapshotPathTemplate: "{testDir}/__snapshots__/{testFileName}/{arg}{ext}",
   fullyParallel: false,
+  // The three.js specs carry timing gates (save under 3 s). Two GPU-heavy
+  // spec files sharing a CI runner doubled the save time; one worker there.
+  workers: process.env.CI ? 1 : undefined,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.02, animations: "disabled" } },

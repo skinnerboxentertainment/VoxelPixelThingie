@@ -29,6 +29,8 @@ Three renderers, one model, one render list:
   carve, frame times in the HUD, 8³ to 32³.
 - **PixiJS pixel mode**: pixels that are secretly voxels. Two 16×16 layers,
   a carved pattern showing depth, tile toggle.
+- **Passport**: one bit by id from a published scene, its 26 emissions and
+  its history, with a QR code of its own address for a physical bit's label.
 
 ## Run
 
@@ -45,7 +47,10 @@ Other commands: `npm run typecheck`, `npm run lint`, `npm run test:coverage`,
 `npm run test:e2e`, `npm run bench`, `npm run bench:memory`,
 `npm run bench:frame` (needs `npm run build && npm run preview` running),
 `npm run docs:api`, `npm run scene:export -- <folder> [size]` (write a sealed
-scene), `npm run scene:check -- <folder> <url>` (the spime test across stores).
+scene), `npm run scene:check -- <folder> <url>` (the spime test across stores),
+`npm run led:drive -- --host <wled ip> --scene <folder|pack> [--dry-run]`
+(light a physical bit over DDP, or `--listen` to bridge the Three.js demo
+with `?led=http://127.0.0.1:4049&bit=first`).
 A published scene lives at
 [VoxelPixelThingie-scenes](https://github.com/skinnerboxentertainment/VoxelPixelThingie-scenes).
 

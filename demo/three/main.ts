@@ -29,6 +29,7 @@ import {
   signsOf,
   TeeSink,
 } from "../../src/index.ts";
+import { LedBridgeSink } from "../shared/led-bridge.ts";
 import { COLORS, referenceScene, sceneCenter } from "../shared/scene.ts";
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
@@ -53,6 +54,10 @@ const loadAutosaveButton = document.getElementById("load-autosave") as HTMLButto
 let size = 8;
 /** Sizes that record a full ledger and can be saved; larger scenes render only. */
 const SAVE_MAX = 16;
+/** ?led=<bridge url>&bit=<id|first> mirrors one bit to a physical bit through scripts/led-drive.ts (ADR 0009). */
+const ledUrl = new URLSearchParams(location.search).get("led");
+let ledBridge: LedBridgeSink | null = null;
+
 let recorder: RecordingSink | null = null;
 let grid: Container = makeScene(size);
 let cameraDirty = true;
@@ -60,7 +65,13 @@ let selected: BitHandle | null = null;
 
 function makeScene(n: number): Container {
   recorder = n <= SAVE_MAX ? new RecordingSink() : null;
-  return referenceScene(n, recorder ?? undefined);
+  if (!ledUrl) return referenceScene(n, recorder ?? undefined);
+  ledBridge = new LedBridgeSink(
+    ledUrl,
+    new URLSearchParams(location.search).get("bit") ?? "first",
+    () => grid,
+  );
+  return referenceScene(n, new TeeSink(recorder ? [recorder, ledBridge] : [ledBridge]));
 }
 
 // ---------------------------------------------------------------- scene
@@ -436,7 +447,7 @@ async function setAutosave(on: boolean): Promise<{ ok: boolean; reason?: string;
   const overlay = OverlayStore.fresh(PackedStore.fromText(text), ws);
   const sink = await SceneSink.resume(overlay);
   autosaveSink = sink;
-  grid.attachSink(new TeeSink([recorder, sink]));
+  grid.attachSink(new TeeSink(ledBridge ? [recorder, sink, ledBridge] : [recorder, sink]));
   const ms = performance.now() - t0;
   status.textContent = `autosave on, ${ms.toFixed(0)} ms to seed`;
   return { ok: true, ms };
@@ -562,6 +573,14 @@ resetButton.addEventListener("click", () => loadSize(size));
     return applyPassport();
   },
   passportOf: (id: string) => grid.get(id)?.passport,
+  selectBit: (id: string) => {
+    const bit = grid.get(id) ?? null;
+    select(bit);
+    return bit !== null;
+  },
+  ledTarget: () => ledBridge?.target,
+  ledPosts: () => ledBridge?.posts ?? -1,
+  ledError: () => ledBridge?.lastError ?? "",
   eventCount: () => recorder?.events.length ?? -1,
   lastEvent: (): BitEvent | undefined => recorder?.events[recorder.events.length - 1],
 };
