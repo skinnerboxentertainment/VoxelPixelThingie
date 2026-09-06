@@ -32,6 +32,19 @@ export interface Manifest {
   /** Bit ids, for stores that cannot list a directory (SPEC.md §10.3). */
   ids?: string[];
   hashes?: Record<string, { passport: string; events: string }>;
+  /** The seal signed by the container's key (SPEC.md §10.3, PLAN-3 Phase 11). */
+  signature?: SceneSignature;
+}
+
+export interface SceneSignature {
+  /** The container's did:web; its document carries the public key. */
+  did: string;
+  keyId: string;
+  alg: "EdDSA";
+  /** base64url Ed25519 signature over sealText(scene, ids, hashes). */
+  value: string;
+  /** When it was signed, ms since the epoch. Informational. */
+  signed: number;
 }
 
 /** passport.json: the bit as it is now, at a sequence number (SPEC.md §10.4). */
