@@ -47,6 +47,13 @@ test.beforeAll(() => {
       encoding: "utf8",
       timeout: 120_000,
     });
+  // The template must reflect the current page source.
+  execFileSync("npx", ["vite", "build", "-c", "vite.reader.config.ts"], {
+    encoding: "utf8",
+    timeout: 120_000,
+    shell: true,
+    stdio: "ignore",
+  });
   const out = run("builtin", good);
   digest = /digest ([0-9a-f]{64})/.exec(out)![1]!;
   tamperedBit = /tampered bit (\S+)/.exec(run("builtin", tampered, "--tamper"))![1]!;
@@ -77,6 +84,8 @@ test("from disk with the network off: the bits, a bit by keyboard, the digest No
   expect(report.resolvedBy).toBe("embedded");
   await expect(page.locator("#s-signature")).toContainText("embedded in this file");
   await expect(page.locator("#status")).toContainText("verified: 512 bits");
+  await expect(page.locator("#s-witness")).toContainText("attested");
+  await expect(page.locator("#s-witness")).toContainText("notary:");
   await expect(page.locator("#bits button")).toHaveCount(512);
   // Keyboard only: filter, tab to the first bit, open it with Enter.
   await page.locator("#filter").focus();

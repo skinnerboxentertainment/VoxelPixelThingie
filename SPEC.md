@@ -1,6 +1,6 @@
 # VoxelPixelThingie — Core Model Specification
 
-Status: Draft v0.8
+Status: Draft v0.9
 Date: 2026-09-06
 Author: Oscar
 
@@ -522,6 +522,21 @@ key. A reader that resolves the DID can tell the manifest was written by
 the container's key and not rewritten since; a reader that cannot still
 has the hashes, which stand on their own.
 
+The signature may carry `witness`: proofs from third parties that the
+SHA-256 of `signature.value` existed at a time. Two kinds: `vpb-notary/1`,
+an Ed25519 key of anyone's signing `{ digest, time }` and carried with the
+proof, and `rfc3161/1`, a time-stamp token from an RFC 3161 authority.
+A reader checks every proof whether or not the DID resolves and reports
+each one's time and whether the witness is in its trust list. A witness
+proves "existed by", never "made by".
+
+A container may rotate its key. The DID document then lists `rotations`:
+statements `{ from, fromKey, to, toKey, retired }` each signed by the key
+being retired. A signature by a key the document no longer asserts with
+verifies through the chain from that key to a current one; if a witness
+places the signature after `retired`, the reader reports `retired` and
+does not accept it. ADR 0013.
+
 ### 10.4 passport.json
 
 ```json
@@ -650,3 +665,5 @@ same camera. That equality, across a round trip through any store, is what
 | 2026-09-06 | A physical bit shows emissions, not the culled list, and carries its LED map in its passport under `ledMap`; DDP to WLED is the wire (§8.6, §9.5, ADR 0009). |
 | 2026-09-06 | A container may hold an Ed25519 key and a `did:web`; the seal is signed with it and a reader who resolves the DID verifies the signature, so the spime test no longer needs to trust the store (§10.3, §10.9, PLAN-3 Phase 11). |
 | 2026-09-06 | Work is three annotations under reserved keys, request then result then audit, with an optional reward after a passed audit; large results are stored by content id (§9.7, ADR 0010). |
+| 2026-09-06 | A scene carries its own reader: one file with the pack, the SPEC, and the DID document, verifying with the repository's own code (ADR 0012). |
+| 2026-09-06 | Seals may be witnessed (a notary key or an RFC 3161 authority attesting the signature's digest at a time) and keys rotate by signed chain in the DID document; a signature witnessed after its key's retirement is `retired` (§10.3, ADR 0013). |

@@ -55,7 +55,10 @@ with `?led=http://127.0.0.1:4049&bit=first`),
 `npm run job:drive -- <folder> [--bit id] [--kind led-frame|epcis|links]`
 (ask a bit for work and watch request, result, audit, and reward land in
 its ledger), `npm run scene:sign -- <folder> --key <jwk> --host <host>`
-(sign a scene's seal with its container's key),
+(sign a scene's seal with its container's key; `--witness notary:<jwk>` or
+`--witness rfc3161:<url>` attaches a witness's proof of the time),
+`npm run key:rotate -- --old <jwk> --new <jwk> --did-doc <did.json>` (retire
+a container key by a signed chain the old seals still verify through),
 `npm run scene:reader -- <folder|pack.json|builtin> <out.html>` (one HTML
 file carrying the reader, the packed scene, the SPEC, and the DID document;
 opens from disk with the network off and verifies the seal there),
