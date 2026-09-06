@@ -21,6 +21,7 @@
     "rehearse": "node bench/rehearsal.mjs",
     "scene:check": "node --experimental-strip-types scripts/mirror-check.ts",
     "scene:epcis": "node --experimental-strip-types scripts/export-epcis.ts",
+    "scene:epcis:capture": "node --experimental-strip-types scripts/epcis-capture-check.ts",
     "scene:export": "node --experimental-strip-types scripts/export-scene.ts",
     "scene:pack": "node --experimental-strip-types scripts/pack-scene.ts",
     "scene:pin": "node --experimental-strip-types scripts/pin-pinata.ts",

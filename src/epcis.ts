@@ -15,10 +15,17 @@
  *   linked     AssociationEvent ADD, parent the bit, child the neighbor
  *   unlinked   AssociationEvent DELETE
  *
- * Identifiers are urn:uuid URIs. The container is the readPoint. A wrangler's
- * cause becomes a bizStep under the project namespace; the actor becomes an
- * owning_party source. Extension fields use the `vpb:` prefix declared in
- * the document's @context.
+ * Identifiers are web URIs under the project namespace: a bit is
+ * <VPB_NS>bit/<uuid>, the container is the readPoint <VPB_NS>frame/<id>,
+ * and an actor is an owning_party source <VPB_NS>actor/<slug>. EPCIS 2.0
+ * allows any URI, and urn:uuid: would be the shorter choice, but OpenEPCIS
+ * runs every urn: EPC, readPoint, and source through its GS1 identifier
+ * translator and rejects the ones that are not GS1 URNs; web URIs pass
+ * untouched. The prefixes are options for a deployment that wants urn:uuid:
+ * or GS1 Digital Link forms. The event id stays a URN, which is not
+ * translated. A wrangler's cause becomes a bizStep under the project
+ * namespace. Extension fields use the `vpb:` prefix declared in the
+ * document's @context.
  */
 import type { BitEvent, EventSink } from "./events.ts";
 
@@ -26,9 +33,11 @@ export const VPB_NS = "https://skinnerboxentertainment.github.io/VoxelPixelThing
 export const EPCIS_CONTEXT = "https://ref.gs1.org/standards/epcis/epcis-context.jsonld";
 
 export interface EpcisOptions {
-  /** Prefix for readPoint ids built from a container id. Default urn:vpb:frame: */
+  /** Prefix for bit ids in epcList, parentID, and childEPCs. Default <VPB_NS>bit/ */
+  bitPrefix?: string;
+  /** Prefix for readPoint ids built from a container id. Default <VPB_NS>frame/ */
   framePrefix?: string;
-  /** Prefix for actor party ids. Default urn:vpb:actor: */
+  /** Prefix for actor party ids. Default <VPB_NS>actor/ */
   actorPrefix?: string;
   /** Document creation time. Default now. */
   now?: () => number;
@@ -51,7 +60,6 @@ export interface EpcisDocument {
 }
 
 const iso = (ms: number) => new Date(ms).toISOString();
-const uuidUri = (id: string) => `urn:uuid:${id}`;
 
 function slug(s: string): string {
   const out: string[] = [];
@@ -84,8 +92,10 @@ export function epcisKind(type: BitEvent["type"]): {
 
 /** One VPB event as one EPCIS event. */
 export function toEpcisEvent(e: BitEvent, opts: EpcisOptions = {}): EpcisEvent {
-  const framePrefix = opts.framePrefix ?? "urn:vpb:frame:";
-  const actorPrefix = opts.actorPrefix ?? "urn:vpb:actor:";
+  const bitPrefix = opts.bitPrefix ?? `${VPB_NS}bit/`;
+  const framePrefix = opts.framePrefix ?? `${VPB_NS}frame/`;
+  const actorPrefix = opts.actorPrefix ?? `${VPB_NS}actor/`;
+  const bitUri = (id: string) => `${bitPrefix}${id}`;
   const kind = epcisKind(e.type);
   const out: EpcisEvent = {
     type: kind.type,
@@ -105,8 +115,8 @@ export function toEpcisEvent(e: BitEvent, opts: EpcisOptions = {}): EpcisEvent {
 
   if (kind.type === "AssociationEvent") {
     const neighbor = e.type === "linked" || e.type === "unlinked" ? e.neighbor : "";
-    out.parentID = uuidUri(e.bit);
-    out.childEPCs = [uuidUri(neighbor)];
+    out.parentID = bitUri(e.bit);
+    out.childEPCs = [bitUri(neighbor)];
     if (e.type === "linked") {
       out["vpb:slot"] = e.slot;
       out["vpb:partner"] = e.partner;
@@ -117,7 +127,7 @@ export function toEpcisEvent(e: BitEvent, opts: EpcisOptions = {}): EpcisEvent {
     return out;
   }
 
-  out.epcList = [uuidUri(e.bit)];
+  out.epcList = [bitUri(e.bit)];
   switch (e.type) {
     case "created":
       out.bizStep = out.bizStep ?? "commissioning";

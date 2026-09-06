@@ -171,17 +171,21 @@ mapping].
 
 | VPB event | EPCIS 2.0 | Fields |
 |-----------|-----------|--------|
-| `created` | ObjectEvent, action ADD | epcList `urn:uuid:<id>`, bizStep from `cause`, readPoint from `frame`, ilmd carrying color and initial emission |
+| `created` | ObjectEvent, action ADD | epcList `<ns>bit/<id>`, bizStep from `cause`, readPoint from `frame`, ilmd carrying color and initial emission |
 | `destroyed` | ObjectEvent, action DELETE | same identity |
 | `moved` | ObjectEvent, action OBSERVE | readPoint `frame`, an extension for the cell |
 | `emitted` | ObjectEvent, action OBSERVE, sensorElementList | one sensor report per field: color, light, data |
 | `linked` / `unlinked` | AssociationEvent, action ADD / DELETE | parentID the bit, childEPCs the neighbor, an extension for the slot pair |
-| `passport` | ObjectEvent, action OBSERVE | ilmd carrying the passport |
+| `passport` | ObjectEvent, action OBSERVE | an extension carrying the passport; ilmd is ADD-only in EPCIS 2.0 |
 | `annotated` | ObjectEvent, action OBSERVE | an extension |
 
 `actor` becomes a source or destination party where the CBV allows it and
-an extension otherwise. Identifiers are `urn:uuid:` URIs; a GS1 Digital
-Link form is a later option for physical bits.
+an extension otherwise. Identifiers are web URIs under the project
+namespace, `https://skinnerboxentertainment.github.io/VoxelPixelThingie/ns/`;
+the plan said `urn:uuid:`, and OpenEPCIS rejects that form because it
+translates every `urn:` identifier as a GS1 URN (Phase 9 journal). The
+prefixes are options, so a GS1 Digital Link form stays open for physical
+bits.
 
 **Work.**
 1. Fetch and vendor the EPCIS 2.0 JSON Schema and JSON-LD context into
