@@ -61,9 +61,12 @@ Protocol on stdio: tools to read and change bits and ask them for work,
 resources for SPEC sections, ADRs, and the oracle list; `.mcp.json` at the
 root points Claude Code at it, and the ledger names the agent as
 `mcp:<client>`),
-`node --experimental-strip-types scripts/wled-sim.ts` (a WLED emulator in
-the terminal, UDP 4048 and a JSON API on 8790, so the driver runs with no
-hardware: pass `--http-port 8790` to `led:drive`; invoked directly because
+`npm run durable:worker -- --scene <folder>` (host a scene's actors on the
+durable engine, a local `temporal server start-dev`; jobs submitted through
+`DurableActorPool` survive a killed worker and complete exactly once),
+`node --experimental-strip-types scripts/wled-sim.ts` (the physical bit's
+digital twin: a WLED emulator in the terminal, UDP 4048 and a JSON API on
+8790, so the driver runs with no hardware: pass `--http-port 8790` to `led:drive`; invoked directly because
 `npm run` under cmd.exe asks before honoring Ctrl-C).
 A published scene lives at
 [VoxelPixelThingie-scenes](https://github.com/skinnerboxentertainment/VoxelPixelThingie-scenes).

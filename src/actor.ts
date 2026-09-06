@@ -185,64 +185,88 @@ export class InProcessPool implements ActorPool {
       this.#grid.wrangle({ actor: this.name, cause }, () =>
         bit.annotate(key, value as unknown as JsonValue),
       );
-    const request: JobRequest = {
-      id: job.id,
-      kind: job.kind,
-      ...(job.params ? { params: job.params } : {}),
-    };
-    record(JOB_KEYS.request, request, `job ${job.kind}`);
-
-    const t0 = performance.now();
-    let outcome: Outcome;
-    const workload = this.#workloads[job.kind];
-    if (!workload) {
-      outcome = {
-        value: null,
-        check: "workload exists",
-        passed: false,
-        detail: `no workload ${job.kind}`,
-      };
-    } else {
-      try {
-        outcome = await workload(bit, job, { grid: this.#grid, history: this.#history });
-      } catch (err) {
-        outcome = {
-          value: null,
-          check: "workload completes",
-          passed: false,
-          detail: (err as Error).message,
-        };
-      }
-    }
-    const ms = Math.round((performance.now() - t0) * 1000) / 1000;
-
-    // Bytes always go to storage by content id; only JSON values ride inline.
-    // (An array of hundreds of numbers inside an EPCIS extension broke a
-    // repository's identifier translator; a content id never will.)
-    const result: JobResult = { id: job.id, ms, worker: this.name };
-    if (outcome.bytes) {
-      result.cid = await this.#storage.put(outcome.bytes);
-      result.bytes = outcome.bytes.length;
-    } else {
-      result.value = outcome.value ?? null;
-    }
+    record(JOB_KEYS.request, requestRecord(job), `job ${job.kind}`);
+    const { result, audit } = await performJob(bit, job, {
+      grid: this.#grid,
+      storage: this.#storage,
+      workloads: this.#workloads,
+      history: this.#history,
+      worker: this.name,
+    });
     record(JOB_KEYS.result, result, `job ${job.kind}`);
-
-    const audit: JobAudit = {
-      id: job.id,
-      check: outcome.check,
-      passed: outcome.passed,
-      ...(outcome.detail ? { detail: outcome.detail } : {}),
-    };
     record(JOB_KEYS.audit, audit, `audit ${job.kind}`);
-    if (audit.passed)
-      record(
-        JOB_KEYS.reward,
-        { id: job.id, note: `audit passed: ${audit.check}` },
-        `reward ${job.kind}`,
-      );
+    if (audit.passed) record(JOB_KEYS.reward, rewardRecord(audit), `reward ${job.kind}`);
     return audit;
   }
+}
+
+/** The request record for a job. */
+export function requestRecord(job: Job): JobRequest {
+  return { id: job.id, kind: job.kind, ...(job.params ? { params: job.params } : {}) };
+}
+
+/** The reward record that follows a passed audit. */
+export function rewardRecord(audit: JobAudit): { id: string; note: string } {
+  return { id: audit.id, note: `audit passed: ${audit.check}` };
+}
+
+export interface PerformOptions {
+  grid: Container;
+  storage: Storage;
+  workloads: Record<string, Workload>;
+  history: () => BitEvent[];
+  /** Named in the result record. */
+  worker: string;
+}
+
+/**
+ * Run a workload and produce the result and audit records without writing
+ * them: the in-process pool and the durable backend (Phase 15) both call
+ * this, and each records the outcome its own way. Bytes go to storage by
+ * content id; a throwing or missing workload is a failed audit.
+ */
+export async function performJob(
+  bit: BitHandle,
+  job: Job,
+  opts: PerformOptions,
+): Promise<{ result: JobResult; audit: JobAudit }> {
+  const t0 = performance.now();
+  let outcome: Outcome;
+  const workload = opts.workloads[job.kind];
+  if (!workload) {
+    outcome = {
+      value: null,
+      check: "workload exists",
+      passed: false,
+      detail: `no workload ${job.kind}`,
+    };
+  } else {
+    try {
+      outcome = await workload(bit, job, { grid: opts.grid, history: opts.history });
+    } catch (err) {
+      outcome = {
+        value: null,
+        check: "workload completes",
+        passed: false,
+        detail: (err as Error).message,
+      };
+    }
+  }
+  const ms = Math.round((performance.now() - t0) * 1000) / 1000;
+  const result: JobResult = { id: job.id, ms, worker: opts.worker };
+  if (outcome.bytes) {
+    result.cid = await opts.storage.put(outcome.bytes);
+    result.bytes = outcome.bytes.length;
+  } else {
+    result.value = outcome.value ?? null;
+  }
+  const audit: JobAudit = {
+    id: job.id,
+    check: outcome.check,
+    passed: outcome.passed,
+    ...(outcome.detail ? { detail: outcome.detail } : {}),
+  };
+  return { result, audit };
 }
 
 /** True when a partner slot exists for the offset: the model's own rule, used by the links check. */
