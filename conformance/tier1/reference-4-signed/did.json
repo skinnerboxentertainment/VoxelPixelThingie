@@ -1,0 +1,24 @@
+{
+  "@context": [
+    "https://www.w3.org/ns/did/v1",
+    "https://w3id.org/security/suites/jws-2020/v1"
+  ],
+  "id": "did:web:kit.example.invalid:frame:kit-reference-4",
+  "verificationMethod": [
+    {
+      "id": "did:web:kit.example.invalid:frame:kit-reference-4#381381009a04a498",
+      "type": "JsonWebKey2020",
+      "controller": "did:web:kit.example.invalid:frame:kit-reference-4",
+      "publicKeyJwk": {
+        "kty": "OKP",
+        "crv": "Ed25519",
+        "x": "j1z7rM61iEN3TxG3FNtCOTq1SN10UPmnN84UgMssDp0",
+        "alg": "EdDSA",
+        "kid": "381381009a04a498"
+      }
+    }
+  ],
+  "assertionMethod": [
+    "did:web:kit.example.invalid:frame:kit-reference-4#381381009a04a498"
+  ]
+}

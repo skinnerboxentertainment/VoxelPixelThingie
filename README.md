@@ -115,6 +115,9 @@ A published scene lives at
 - [docs/spime-research.md](docs/spime-research.md): the spime framing
   checked against its source and against the standards that made it real,
   with the v0.4 amendments it implies.
+- [conformance/](conformance/RUNNING.md): the rules for a correct bit as
+  fixtures any language can read, with a Python implementation under
+  `kit/python` that passes tiers 1 and 2.
 - [PUNCHLIST.md](PUNCHLIST.md): what would make the bit more durable,
   accessible, and capable next, each with the check that shows it done.
 - [docs/research/](docs/research/): field surveys before a track is planned;

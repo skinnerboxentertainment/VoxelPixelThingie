@@ -64,3 +64,15 @@ jobs:
           name: release-manifest
           path: release/
           retention-days: 30
+
+  conformance-kit:
+    name: conformance-kit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      # A second implementation, standard library only, against the fixtures alone (PLAN-4.md Phase 25).
+      - run: python kit/python/run_kit.py conformance

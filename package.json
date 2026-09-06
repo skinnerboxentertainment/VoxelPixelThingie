@@ -37,6 +37,8 @@
     "release:build": "node --experimental-strip-types scripts/release-build.ts",
     "release:attest": "node --experimental-strip-types scripts/release-attest.ts",
     "release:verify": "node --experimental-strip-types scripts/release-verify.ts",
+    "conformance:export": "node --experimental-strip-types scripts/conformance-export.ts",
+    "conformance:python": "python kit/python/run_kit.py conformance",
     "key:gen": "node --experimental-strip-types scripts/keygen.ts",
     "key:rotate": "node --experimental-strip-types scripts/rotate-key.ts",
     "job:drive": "node --experimental-strip-types scripts/job-drive.ts",

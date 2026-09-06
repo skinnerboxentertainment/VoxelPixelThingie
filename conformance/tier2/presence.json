@@ -1,0 +1,372 @@
+{
+  "scene": "kit-presence",
+  "clock": {
+    "start": 1700000100000,
+    "step": 1
+  },
+  "ops": [
+    {
+      "op": "add",
+      "id": "bit-0001",
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "color": 1122867
+    },
+    {
+      "op": "add",
+      "id": "bit-0002",
+      "position": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "op": "add",
+      "id": "bit-0003",
+      "position": [
+        1,
+        1,
+        0
+      ]
+    },
+    {
+      "op": "setPresent",
+      "id": "bit-0002",
+      "present": false
+    },
+    {
+      "op": "emit",
+      "id": "bit-0001",
+      "slot": 0,
+      "emission": {
+        "light": 1
+      }
+    },
+    {
+      "op": "setPresent",
+      "id": "bit-0002",
+      "present": true
+    },
+    {
+      "op": "remove",
+      "id": "bit-0003"
+    }
+  ],
+  "expected": {
+    "events": [
+      {
+        "type": "created",
+        "position": [
+          0,
+          0,
+          0
+        ],
+        "color": 1122867,
+        "bit": "bit-0001",
+        "seq": 1,
+        "time": 1700000100000,
+        "frame": "kit-presence"
+      },
+      {
+        "type": "created",
+        "position": [
+          1,
+          0,
+          0
+        ],
+        "color": 16777215,
+        "bit": "bit-0002",
+        "seq": 2,
+        "time": 1700000100001,
+        "frame": "kit-presence"
+      },
+      {
+        "type": "created",
+        "position": [
+          1,
+          1,
+          0
+        ],
+        "color": 16777215,
+        "bit": "bit-0003",
+        "seq": 3,
+        "time": 1700000100002,
+        "frame": "kit-presence"
+      },
+      {
+        "type": "presence",
+        "present": false,
+        "bit": "bit-0002",
+        "seq": 4,
+        "time": 1700000100003,
+        "frame": "kit-presence"
+      },
+      {
+        "type": "emitted",
+        "slot": 0,
+        "emission": {
+          "light": 1
+        },
+        "bit": "bit-0001",
+        "seq": 5,
+        "time": 1700000100004,
+        "frame": "kit-presence"
+      },
+      {
+        "type": "presence",
+        "present": true,
+        "bit": "bit-0002",
+        "seq": 6,
+        "time": 1700000100005,
+        "frame": "kit-presence"
+      },
+      {
+        "type": "destroyed",
+        "bit": "bit-0003",
+        "seq": 7,
+        "time": 1700000100006,
+        "frame": "kit-presence"
+      }
+    ],
+    "state": {
+      "scene": "kit-presence",
+      "bits": [
+        {
+          "id": "bit-0001",
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "present": true,
+          "color": 1122867,
+          "passport": {},
+          "emissions": [
+            {
+              "light": 1
+            },
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {}
+          ],
+          "links": [
+            [],
+            [
+              "bit-0002:0"
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [
+              "bit-0002:10"
+            ],
+            [],
+            [
+              "bit-0002:12"
+            ],
+            [],
+            [
+              "bit-0002:14"
+            ],
+            [],
+            [
+              "bit-0002:16"
+            ],
+            [],
+            [
+              "bit-0002:18"
+            ],
+            [],
+            [
+              "bit-0002:20"
+            ],
+            [],
+            [
+              "bit-0002:22"
+            ],
+            [],
+            [
+              "bit-0002:24"
+            ]
+          ]
+        },
+        {
+          "id": "bit-0002",
+          "position": [
+            1,
+            0,
+            0
+          ],
+          "present": true,
+          "color": 16777215,
+          "passport": {},
+          "emissions": [
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {},
+            {}
+          ],
+          "links": [
+            [
+              "bit-0001:1"
+            ],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [],
+            [
+              "bit-0001:11"
+            ],
+            [],
+            [
+              "bit-0001:13"
+            ],
+            [],
+            [
+              "bit-0001:15"
+            ],
+            [],
+            [
+              "bit-0001:17"
+            ],
+            [],
+            [
+              "bit-0001:19"
+            ],
+            [],
+            [
+              "bit-0001:21"
+            ],
+            [],
+            [
+              "bit-0001:23"
+            ],
+            [],
+            [
+              "bit-0001:25"
+            ],
+            []
+          ]
+        }
+      ]
+    },
+    "stateDigest": "3849966de655ab6a84fa23afd931261c6702de927d41f9b03d5b44e2b0aa7d41",
+    "linkCounts": {
+      "bit-0001": [
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1
+      ],
+      "bit-0002": [
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0
+      ]
+    }
+  }
+}

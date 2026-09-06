@@ -11,7 +11,7 @@
  * the DID document's rotation chain, unless a witness places it after the
  * key's retirement.
  */
-import type { Container } from "./container.ts";
+import type { BitRecord, Container } from "./container.ts";
 import { assertionKeys, type DidDocument, rotationPath } from "./did.ts";
 import { keyId, type PrivateKeyJwk, publicOf, signText, verifyText } from "./keys.ts";
 import { ledgerPath, mapLimit, passportPath, readManifest, type SceneSignature } from "./scene.ts";
@@ -230,6 +230,26 @@ export function sceneCanonical(grid: Container, camera: Camera = { position: [20
 /** One hash over sceneCanonical. Equal digests from two stores mean the same bits. */
 export async function sceneDigest(grid: Container, camera?: Camera): Promise<string> {
   return sha256Hex(JSON.stringify(sceneCanonical(grid, camera)));
+}
+
+/** A record without the self-test outcome: what a container holds, not what a camera saw. */
+export type StateRecord = Omit<BitRecord, "renderCycle" | "renderEnabled">;
+
+/**
+ * The state alone (PLAN-4.md Phase 25): ids, positions, presence, colors,
+ * passports, emissions, and the links derived from geometry, with no
+ * camera involved. This is what the conformance kit's tiers 1 and 2 ask
+ * a second implementation to reproduce; the render flags are tier 3.
+ */
+export function stateCanonical(grid: Container): { scene: string; bits: StateRecord[] } {
+  return {
+    scene: grid.id,
+    bits: grid.snapshot().map(({ renderCycle: _c, renderEnabled: _e, ...rest }) => rest),
+  };
+}
+
+export async function stateDigest(grid: Container): Promise<string> {
+  return sha256Hex(JSON.stringify(stateCanonical(grid)));
 }
 
 function sortKeys<T>(o: Record<string, T>): Record<string, T> {
