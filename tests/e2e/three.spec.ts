@@ -15,6 +15,9 @@ type Hook = {
   save(): Promise<{ ok: boolean; reason?: string; events?: number; ms?: number }>;
   load(): Promise<{ ok: boolean; reason?: string; bits?: number; ms?: number }>;
   selectFirstFaceBit(): string | undefined;
+  autosave(on: boolean): Promise<{ ok: boolean; reason?: string; ms?: number }>;
+  autosaveFlush(): Promise<{ ok: boolean; events: number }>;
+  loadAutosave(): Promise<{ ok: boolean; reason?: string; bits?: number; ms?: number }>;
   setPassportOnSelected(obj: unknown): boolean;
   passportOf(id: string): unknown;
   removeCenterFacingBit(): string | undefined;
@@ -150,4 +153,49 @@ test("16^3 saves and loads in under ten seconds combined", async ({ page }) => {
   expect(total).toBeLessThan(15_000);
   const after = await counts(page);
   expect(after.bits).toBe(before.bits);
+});
+
+test("autosave: carve five, reload without saving, load the autosaved scene", async ({ page }) => {
+  test.setTimeout(90_000);
+  const on = await page.evaluate(() => (window as unknown as { __vpb: Hook }).__vpb.autosave(true));
+  expect(on.ok).toBe(true);
+  test
+    .info()
+    .annotations.push({ type: "autosave seed ms", description: String(on.ms?.toFixed(0)) });
+  for (let i = 0; i < 5; i++) {
+    await page.evaluate(() => (window as unknown as { __vpb: Hook }).__vpb.removeCenterFacingBit());
+  }
+  const flushed = await page.evaluate(() =>
+    (window as unknown as { __vpb: Hook }).__vpb.autosaveFlush(),
+  );
+  expect(flushed.ok).toBe(true);
+  const before = await counts(page);
+  expect(before.bits).toBe(480);
+
+  await page.reload();
+  await page.waitForSelector("body[data-ready='1']", { timeout: 60_000 });
+  expect((await counts(page)).bits).toBe(485);
+  const loaded = await page.evaluate(() =>
+    (window as unknown as { __vpb: Hook }).__vpb.loadAutosave(),
+  );
+  expect(loaded.ok).toBe(true);
+  test
+    .info()
+    .annotations.push({ type: "autosave load ms", description: String(loaded.ms?.toFixed(0)) });
+  await page.waitForTimeout(200);
+  const after = await counts(page);
+  expect(after.bits).toBe(before.bits);
+  expect(after.face).toBe(before.face);
+});
+
+test("a fresh browser context has no autosaved scene", async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto("/three/");
+  await page.waitForSelector("body[data-ready='1']", { timeout: 60_000 });
+  const loaded = await page.evaluate(() =>
+    (window as unknown as { __vpb: Hook }).__vpb.loadAutosave(),
+  );
+  expect(loaded.ok).toBe(false);
+  await context.close();
 });

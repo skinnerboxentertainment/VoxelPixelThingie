@@ -50,6 +50,17 @@ export interface EventSink {
 
 export const NULL_SINK: EventSink = { record() {} };
 
+/** Fan out every event to several sinks, in order. */
+export class TeeSink implements EventSink {
+  readonly sinks: EventSink[];
+  constructor(sinks: EventSink[]) {
+    this.sinks = sinks;
+  }
+  record(event: BitEvent): void {
+    for (const s of this.sinks) s.record(event);
+  }
+}
+
 export class RecordingSink implements EventSink {
   readonly events: BitEvent[] = [];
   record(event: BitEvent): void {
