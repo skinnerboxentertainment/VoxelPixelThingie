@@ -51,7 +51,8 @@ EPCIS 2.0 document, validated), `npm run scene:epcis:capture -- <out.json>`
 (capture it into a local OpenEPCIS and count it back),
 `npm run led:drive -- --host <wled ip> --scene <folder|pack> [--dry-run]`
 (light a physical bit over DDP, or `--listen` to bridge the Three.js demo
-with `?led=http://127.0.0.1:4049&bit=first`),
+with `?led=http://127.0.0.1:4049&bit=first`; `--senses [ms]` polls the
+device's sensors into the bit's ledger as `sense:*` readings),
 `npm run job:drive -- <folder> [--bit id] [--kind led-frame|epcis|links]`
 (ask a bit for work and watch request, result, audit, and reward land in
 its ledger), `npm run scene:sign -- <folder> --key <jwk> --host <host>`

@@ -8,6 +8,8 @@
  *   add --dry-run to print the packets instead of sending them
  *   add --map <led-map.json> to use a map other than the bit's passport or the default
  *   add --http-port <n> for the device's JSON API (default 80; 0 skips the probe)
+ *   add --senses [ms] with --scene <folder> to poll the device's sensors and write
+ *       sense:* readings into the bit's ledger (actor device:<host>); --senses-count n stops after n
  *
  * The map comes from, in order: --map, the bit's passport `ledMap`, the
  * plan's 68-LED default.
@@ -18,7 +20,9 @@ import { defaultLedMap, ledFrame, type LedMap, ledMapFromJson, ledMapOf } from "
 import { PackedStore } from "../src/pack.ts";
 import { openScene } from "../src/scene.ts";
 import { NodeFsStore } from "../src/store-node.ts";
-import { DdpSender, startBridge } from "./led-bridge.ts";
+import { SceneSink } from "../src/scene.ts";
+import { recordReadings } from "../src/senses.ts";
+import { DdpSender, readWledSensors, startBridge } from "./led-bridge.ts";
 
 const args = process.argv.slice(2);
 const flag = (name: string): string | undefined => {
@@ -96,8 +100,14 @@ if (has("listen")) {
     console.error("usage: led-drive --host <ip> (--scene <folder|pack.json> [--bit <id>] | --listen [port]) [--dry-run] [--map file]");
     process.exit(2);
   }
+  const senses = has("senses");
+  if (senses && scene.endsWith(".json")) {
+    console.error("--senses writes readings into the scene; use a folder, not a pack");
+    process.exit(2);
+  }
   const store = scene.endsWith(".json") ? PackedStore.fromText(await fs.readFile(scene, "utf8")) : new NodeFsStore(scene);
-  const grid = await openScene(store);
+  const sink = senses ? await SceneSink.resume(store) : undefined;
+  const grid = await openScene(store, sink ? { attach: sink } : {});
   const wanted = flag("bit");
   const bit = wanted ? grid.get(wanted) : [...grid.bits()].find((b) => b.present);
   if (!bit) {
@@ -113,4 +123,26 @@ if (has("listen")) {
   sender.close();
   console.log(`bit ${bit.id} at ${bit.key}: ${map.leds} LEDs, ${lit} lit, ${sent.packets} packet(s), ${sent.bytes} bytes${dryRun ? " (dry run)" : ` to ${host}:${port}`}`);
   if (dryRun) for (const p of sender.dryPackets) console.log(p);
+  if (senses && sink) {
+    const every = Number(flag("senses") || 5000);
+    const count = Number(flag("senses-count") ?? Number.POSITIVE_INFINITY);
+    const base = `http://${host}:${httpPort}`;
+    let polls = 0;
+    const poll = async () => {
+      try {
+        const readings = await readWledSensors(base);
+        recordReadings(grid, bit, readings, host);
+        await sink.flush();
+        polls++;
+        console.log(
+          `senses ${polls}: ${readings.map((r) => `${r.key.slice(6)} ${r.reading.value} ${r.reading.uom}`).join(", ") || "none reported"}`,
+        );
+      } catch (err) {
+        console.warn(`senses: ${(err as Error).message}`);
+      }
+      if (polls >= count) return;
+      setTimeout(() => void poll(), every);
+    };
+    await poll();
+  }
 }

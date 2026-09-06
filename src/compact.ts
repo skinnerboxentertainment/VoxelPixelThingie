@@ -14,6 +14,7 @@ import {
   passportPath,
   readManifest,
 } from "./scene.ts";
+import { isSenseKey } from "./senses.ts";
 import type { FileStore } from "./store.ts";
 
 export interface CompactOptions {
@@ -45,6 +46,13 @@ export function compactLedger(
   const beyond = kept.filter((e) => e.seq > passport.seq);
   // Keep the last `tail` of the covered events so recent history reads without the passport.
   kept = [...covered.slice(Math.max(0, covered.length - opts.tail)), ...beyond];
+  // A bit keeps its last reading per quantity (SPEC.md §9.9): senses are state the passport does not hold.
+  const lastReading = new Map<string, BitEvent>();
+  for (const e of events)
+    if (e.type === "annotated" && isSenseKey(e.key)) lastReading.set(e.key, e);
+  const have = new Set(kept.map((e) => e.seq));
+  for (const e of lastReading.values()) if (!have.has(e.seq)) kept.push(e);
+  kept.sort((a, b) => a.seq - b.seq);
   return kept;
 }
 

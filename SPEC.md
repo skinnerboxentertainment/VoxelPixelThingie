@@ -505,6 +505,27 @@ before it lands.
 The vocabulary maps one to one onto ODRL 2.2 terms; `scene:policy`
 renders it so. The enforced form is this one.
 
+### 9.9 Senses
+
+What a physical bit feels lands in its history as `annotated` events
+under reserved keys `sense:<quantity>`, each a reading:
+
+```json
+{ "value": 24.3, "uom": "CEL", "time": 1789000000000, "device": "wled-bit-1" }
+```
+
+`value` is a finite number, `uom` a UN/CEFACT common code, `time` when
+the device read it, `device` the device's name or URI; `min` and `max`
+are optional bounds. The quantities and their CBV measurement types are
+listed in `src/senses.ts`: temperature (CEL), illuminance (LUX),
+humidity (P1), pressure (PAL), and touch (C62, ours). A malformed reading
+is refused at the sink like a malformed job record. Readings are notes
+with units, not state: the passport does not hold them, so compaction
+keeps the last reading per quantity. The EPCIS export renders a reading
+as an observation with a standard `sensorElementList`: `sensorMetadata`
+with the time and `deviceID`, `sensorReport` with the CBV `type`, `value`,
+and `uom`, so any EPCIS system reads it as a sensor event. ADR 0015.
+
 ## 10. Persistence
 
 A spime's data trail must be able to leave the process. This section fixes
@@ -708,3 +729,4 @@ same camera. That equality, across a round trip through any store, is what
 | 2026-09-06 | A scene carries its own reader: one file with the pack, the SPEC, and the DID document, verifying with the repository's own code (ADR 0012). |
 | 2026-09-06 | Seals may be witnessed (a notary key or an RFC 3161 authority attesting the signature's digest at a time) and keys rotate by signed chain in the DID document; a signature witnessed after its key's retirement is `retired` (§10.3, ADR 0013). |
 | 2026-09-06 | A bit may carry a `policy` in its passport (controllers, actor allow and deny, agents, work); the file sink judges every event against it before the container applies, and a refusal lands as `policy:refused` at the refused event's seq (§9.5, §9.8, ADR 0014). |
+| 2026-09-06 | Senses are annotations under `sense:<quantity>` with a value, a UN/CEFACT unit, a time, and a device; validated at the sink, kept last-per-quantity by compaction, exported as standard EPCIS sensor reports in the CBV vocabulary (§9.9, ADR 0015). |
