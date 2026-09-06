@@ -57,6 +57,8 @@ A published scene lives at
   Unreal, and the 2D / 2.5D / 3D matrix.
 - [REPOS.md](REPOS.md): libraries worth integrating or borrowing from.
 - [PLAN.md](PLAN.md): the stand-up and demo plan, with the demo script.
+- [PLAN-2.md](PLAN-2.md): the second program: flat-array store, fast browser
+  persistence, EPCIS export, and the physical bit.
 - [docs/spime-research.md](docs/spime-research.md): the spime framing
   checked against its source and against the standards that made it real,
   with the v0.4 amendments it implies.
