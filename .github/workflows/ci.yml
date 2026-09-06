@@ -39,3 +39,24 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+
+  release-check:
+    name: release-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # The same build a release makes (RELEASING.md): its manifest digest is
+      # compared against a build of the same commit on another machine.
+      - run: npm run release:build
+      - run: node -e "const m=require('./release/release.json');console.log('release digest '+m.digest+' at '+m.commit)"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-manifest
+          path: release/
+          retention-days: 30
