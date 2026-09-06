@@ -56,6 +56,11 @@ with `?led=http://127.0.0.1:4049&bit=first`),
 (ask a bit for work and watch request, result, audit, and reward land in
 its ledger), `npm run scene:sign -- <folder> --key <jwk> --host <host>`
 (sign a scene's seal with its container's key),
+`npm run mcp -- [--scene <folder>]` (serve the scene over the Model Context
+Protocol on stdio: tools to read and change bits and ask them for work,
+resources for SPEC sections, ADRs, and the oracle list; `.mcp.json` at the
+root points Claude Code at it, and the ledger names the agent as
+`mcp:<client>`),
 `node --experimental-strip-types scripts/wled-sim.ts` (a WLED emulator in
 the terminal, UDP 4048 and a JSON API on 8790, so the driver runs with no
 hardware: pass `--http-port 8790` to `led:drive`; invoked directly because
