@@ -41,6 +41,11 @@
         <button type="button" id="remove">remove bit</button>
         <button type="button" id="close">close</button>
       </div>
+      <div class="row">
+        <label>job <select id="job-kind"><option value="led-frame-gpu">led-frame on the GPU</option><option value="led-frame">led-frame on the CPU</option><option value="links">links</option><option value="epcis">epcis</option></select></label>
+        <button type="button" id="run-job" title="ask this bit for work; request, result, audit, and reward land in its ledger">run job</button>
+      </div>
+      <div id="job-audit" class="muted"></div>
       <div id="panel-error"></div>
     </div>
     <script type="module" src="./main.ts"></script>
