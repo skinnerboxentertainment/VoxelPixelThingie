@@ -1,6 +1,6 @@
 {
   "name": "voxelpixelthingie",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "description": "VoxelPixelBit core model. See SPEC.md.",

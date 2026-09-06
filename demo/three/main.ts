@@ -312,8 +312,14 @@ resetButton.addEventListener("click", () => loadSize(size));
       }
     }
     if (best) removeBit(best);
-    return best?.id;
+    return best ? { id: best.id, position: [...best.position] } : undefined;
   },
+  debug: () => ({
+    awake: grid.awake.length,
+    frames: frameCount,
+    cameraDirty,
+    renderCycleBits: [...grid.bits()].filter((b) => b.renderCycle).length,
+  }),
   loadSize,
   backend: () => backend,
 };
