@@ -1,6 +1,6 @@
 # VoxelPixelThingie — Core Model Specification
 
-Status: Draft v0.4 (§9.5, §9.6, §10 specified, not yet implemented; see the Phase 6 tickets)
+Status: Draft v0.5
 Date: 2026-09-05
 Author: Oscar
 
@@ -24,7 +24,7 @@ define the bit's responsibility toward the renderer (§8).
 | Link | An explicit record that two nodes belonging to different bits are in contact. |
 | Voxel cube (cube) | A grid array of bits, for example 8×8×8. |
 | Network | The graph formed by all nodes and all links in a cube. |
-| Container | The owner of a set of bits. Mints ids, links neighbors, supplies the event sink. The `Grid` is one container. |
+| Container | The owner of a set of bits. Mints ids, links neighbors, supplies the event sink. `FlatGrid` is the default; `Grid` is the reference both are measured against (ADR 0007). |
 | Event | One recorded change to a bit. See §9. |
 | Spime | Sterling's term for an object whose identity and full history are knowable through its data. The VPB is designed as one (ADR 0005). |
 | Passport | A bit's own free-form JSON record, carried with its identity (§9.5). |
@@ -261,6 +261,11 @@ of the following holds:
 - Links carry their own state.
 
 v0.1 permits either implementation. The model is the same.
+
+A container that derives links from positions may omit `linked` and
+`unlinked` events from its log (v0.5). Replay never applies them, and a
+compactor drops them first. Where they are recorded they remain
+informational: the derived link is the truth on a grid.
 
 ## 8. Self-optimizing render cycle
 
@@ -592,3 +597,4 @@ same camera. That equality, across a round trip through any store, is what
 | 2026-09-06 | Bits carry a free-form JSON passport, replaced whole by a `passport` event (§9.5). Ids default to UUID v7 for bits and containers (§9.1). Events carry `frame`, and optional `actor` and `cause` from a wrangler context (§9.2, §9.6). |
 | 2026-09-06 | Persistence is two files per bit, passport and ledger, in a folder per scene, written ledger-first, store-agnostic; compaction keeps a tail and may drop derivable link events (§10). Closes former open question 5. ADR 0006. |
 | 2026-09-06 | Packed scene variant `vpb-scene-pack/1` for stores that count files (§10.8, ADR 0006 amended). First IPFS pin recorded in the Phase 6 journal. |
+| 2026-09-06 | A container contract (BitHandle, Container) and a conformance suite. FlatGrid over typed arrays with derived link masks is the default container; Grid is the reference. Containers that derive links may omit link events (§7). ADR 0007. |

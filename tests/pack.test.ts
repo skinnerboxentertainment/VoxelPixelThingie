@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Grid } from "../src/grid.ts";
+
+const gridFactory = (o?: ConstructorParameters<typeof Grid>[0]) => new Grid(o);
+
 import {
   PACK_FORMAT,
   PackedStore,
@@ -36,7 +39,7 @@ test("a sealed scene packs to one file, verifies, and opens to the same digest",
   const v = await verifyScene(packed);
   assert.equal(v.ok, true, "hashes verify against the packed texts byte for byte");
   assert.equal(v.checked, 27);
-  const opened = await openScene(packed);
+  const opened = await openScene(packed, { factory: gridFactory });
   assert.equal(await sceneDigest(opened), await sceneDigest(live));
   assert.deepEqual(opened.get(live.at(0, 0, 0)!.id)!.passport, { name: "origin" });
 });
@@ -49,7 +52,10 @@ test("unpack reproduces the folder layout and the same digest", async () => {
   assert.equal(await unpackScene(pack, folder), 27);
   assert.deepEqual([...folder.files.keys()].sort(), [...store.files.keys()].sort());
   assert.equal((await verifyScene(folder)).ok, true);
-  assert.equal(await sceneDigest(await openScene(folder)), await sceneDigest(live));
+  assert.equal(
+    await sceneDigest(await openScene(folder, { factory: gridFactory })),
+    await sceneDigest(live),
+  );
 });
 
 test("PackedStore is read-only, lists bits, and can be fetched from a URL", async () => {

@@ -495,6 +495,14 @@ export class FlatGrid implements Container {
     return out.sort((a, b) => (a.id < b.id ? -1 : 1));
   }
 
+  /** Dense w×h×d block from the origin, every node emitting `emission` if given. */
+  static fill(w: number, h: number, d: number, opts: AddOptions & ContainerOptions = {}): FlatGrid {
+    const g = new FlatGrid(opts);
+    for (let z = 0; z < d; z++)
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) g.add([x, y, z], opts);
+    return g;
+  }
+
   // ---------------------------------------------------------------- self-test (SPEC.md §8)
 
   #staticPass(i: number): void {

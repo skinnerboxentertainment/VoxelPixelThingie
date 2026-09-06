@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { type BitEvent, RecordingSink, replay } from "../src/events.ts";
 import { Grid } from "../src/grid.ts";
+
+const gridFactory = (o?: ConstructorParameters<typeof Grid>[0]) => new Grid(o);
+
 import { ALL_SLOTS } from "../src/slots.ts";
 import type { VoxelPixelBit } from "../src/vpb.ts";
 
@@ -53,7 +56,7 @@ test("oracle: carve, move, emit, destroy on an 8x8x8, then replay to the same st
   live.remove(live.at(7, 0, 0)!);
   live.evaluate();
 
-  const replayed = replay(sink.events);
+  const replayed = replay(sink.events, { factory: gridFactory });
   replayed.evaluate();
 
   assert.equal(replayed.size, live.size);

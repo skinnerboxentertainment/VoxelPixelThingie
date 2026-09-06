@@ -6,7 +6,7 @@
  * The scene is the demo's carved cube: size^3 with a 3^3 corner removed,
  * seams and beads lit, a few passports set, all under a named wrangler.
  */
-import { EDGE_SLOTS, Grid, SceneSink, VERTEX_SLOTS } from "../src/index.ts";
+import { EDGE_SLOTS, FlatGrid, SceneSink, VERTEX_SLOTS } from "../src/index.ts";
 import { NodeFsStore } from "../src/store-node.ts";
 import { sealScene } from "../src/verify.ts";
 
@@ -19,7 +19,7 @@ const size = Number(sizeArg ?? 8);
 
 const store = new NodeFsStore(dir);
 const sink = new SceneSink(store);
-const grid = new Grid({ sink });
+const grid = new FlatGrid({ sink });
 
 grid.wrangle({ actor: "export-scene", cause: "build the reference cube" }, () => {
   for (let z = 0; z < size; z++)

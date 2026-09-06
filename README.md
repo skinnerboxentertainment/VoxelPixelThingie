@@ -74,7 +74,7 @@ From the journals, this machine, one run each:
 | What | Value |
 |------|-------|
 | Solid 8×8×8 | 512 bits, 216 asleep, 384 faces exposed |
-| Memory | about 12.6 KB per bit |
-| Camera move, 32³, awake bits only | 2.4 ms median |
+| Memory | 254 bytes per bit at 64³ on the default container; the reference container is 15.8 KB per bit |
+| Camera move, 32³, awake bits only | 0.57 ms median; 3.4 ms at 64³ |
 | Three.js 32³ orbit with bloom, WebGPU | vsync-locked at 60 Hz, model pass 3.0 ms |
 | Straight-down view | exactly 9 of 26 nodes per bit |
