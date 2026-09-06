@@ -79,9 +79,9 @@ export interface Camera {
    */
   readonly towardCamera?: Vec3;
   /** Frustum test on the bit's unit bounding cube. Default: true. */
-  containsBit?(bit: VoxelPixelBit): boolean;
+  containsBit?(bit: BitHandle): boolean;
   /** Whether the bit projects to at least one pixel. Default: true. */
-  coversPixel?(bit: VoxelPixelBit): boolean;
+  coversPixel?(bit: BitHandle): boolean;
 }
 
 export interface VPBOptions {
