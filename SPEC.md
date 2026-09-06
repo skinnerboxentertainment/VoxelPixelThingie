@@ -1,6 +1,6 @@
 # VoxelPixelThingie — Core Model Specification
 
-Status: Draft v0.6
+Status: Draft v0.7
 Date: 2026-09-06
 Author: Oscar
 
@@ -490,6 +490,14 @@ last stamped sequence number. `ids` lists every bit folder, so a store that
 cannot list a directory (a URL prefix, for example) can still enumerate the
 scene; sinks write it on every manifest update.
 
+A sealed manifest may also carry `signature`: the container's `did:web`,
+a key id, `alg` `EdDSA`, and a base64url Ed25519 signature over the
+canonical text of the scene id, the sorted ids, and every hash. The
+container's DID document, served where `did:web` says, holds the public
+key. A reader that resolves the DID can tell the manifest was written by
+the container's key and not rewritten since; a reader that cannot still
+has the hashes, which stand on their own.
+
 ### 10.4 passport.json
 
 ```json
@@ -566,6 +574,11 @@ that passport. Hypercore is itself an append-only log and could carry
 `events.jsonl` line for line. Syncthing mirrors a folder between devices.
 None of these need the model to change; they need the folder.
 
+With a signed seal (§10.3) the test has a stranger's form: given only a
+content address for the pack and the container's DID, verify the
+signature against the DID document, then the hashes, then the digest.
+Nothing of the publisher's needs to be running.
+
 **Packed variant.** `vpb-scene-pack/1` is the folder as one JSON object:
 the manifest plus each bit's passport and ledger as raw text. `packScene`
 and `unpackScene` convert without loss, so the seal holds on both forms.
@@ -611,3 +624,4 @@ same camera. That equality, across a round trip through any store, is what
 | 2026-09-06 | Packed scene variant `vpb-scene-pack/1` for stores that count files (§10.8, ADR 0006 amended). First IPFS pin recorded in the Phase 6 journal. |
 | 2026-09-06 | A container contract (BitHandle, Container) and a conformance suite. FlatGrid over typed arrays with derived link masks is the default container; Grid is the reference. Containers that derive links may omit link events (§7). ADR 0007. |
 | 2026-09-06 | A physical bit shows emissions, not the culled list, and carries its LED map in its passport under `ledMap`; DDP to WLED is the wire (§8.6, §9.5, ADR 0009). |
+| 2026-09-06 | A container may hold an Ed25519 key and a `did:web`; the seal is signed with it and a reader who resolves the DID verifies the signature, so the spime test no longer needs to trust the store (§10.3, §10.9, PLAN-3 Phase 11). |

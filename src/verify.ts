@@ -6,7 +6,9 @@
  * from two stores.
  */
 import type { Container } from "./container.ts";
-import { ledgerPath, mapLimit, passportPath, readManifest } from "./scene.ts";
+import { assertionKeys, type DidDocument } from "./did.ts";
+import { keyId, type PrivateKeyJwk, publicOf, signText, verifyText } from "./keys.ts";
+import { ledgerPath, mapLimit, passportPath, readManifest, type SceneSignature } from "./scene.ts";
 import type { FileStore } from "./store.ts";
 import type { Camera } from "./vpb.ts";
 
@@ -22,8 +24,28 @@ export async function sha256Hex(text: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-/** Write a SHA-256 per passport and ledger into manifest.hashes. Call at publish time. */
-export async function sealScene(store: FileStore): Promise<number> {
+export interface Signer {
+  /** The container's did:web. */
+  did: string;
+  privateKey: PrivateKeyJwk;
+}
+
+/** The text a seal signature covers: the scene id, the sorted ids, and every file hash. */
+export function sealText(
+  scene: string,
+  ids: string[],
+  hashes: Record<string, { passport: string; events: string }>,
+): string {
+  return JSON.stringify({ scene, ids: [...ids].sort(), hashes: sortKeys(hashes) });
+}
+
+/**
+ * Write a SHA-256 per passport and ledger into manifest.hashes. Call at
+ * publish time. With a signer, also sign the seal with the container's key
+ * (PLAN-3.md Phase 11), so a reader who resolves the DID can tell the
+ * manifest was not rewritten.
+ */
+export async function sealScene(store: FileStore, signer?: Signer): Promise<number> {
   const manifest = await readManifest(store);
   if (!manifest) throw new Error("no manifest.json: not a scene");
   const ids = await store.list("bits");
@@ -32,24 +54,85 @@ export async function sealScene(store: FileStore): Promise<number> {
     const [p, l] = await Promise.all([store.read(passportPath(id)), store.read(ledgerPath(id))]);
     hashes[id] = { passport: await sha256Hex(p ?? ""), events: await sha256Hex(l ?? "") };
   });
-  const sealed = { ...manifest, ids: [...ids].sort(), hashes: sortKeys(hashes) };
+  const sortedIds = [...ids].sort();
+  const sealed: typeof manifest = { ...manifest, ids: sortedIds, hashes: sortKeys(hashes) };
+  delete sealed.signature;
+  if (signer) {
+    const text = sealText(manifest.scene, sortedIds, hashes);
+    const kid = await keyId(publicOf(signer.privateKey));
+    const signature: SceneSignature = {
+      did: signer.did,
+      keyId: kid,
+      alg: "EdDSA",
+      value: await signText(signer.privateKey, text),
+      signed: Date.now(),
+    };
+    sealed.signature = signature;
+  }
   await store.write("manifest.json", `${JSON.stringify(sealed, null, 2)}\n`);
   return ids.length;
 }
+
+export type SignatureState = "unsigned" | "verified" | "forged" | "unresolved";
 
 export interface VerifyReport {
   ok: boolean;
   checked: number;
   mismatches: { id: string; file: "passport" | "events" }[];
   reason?: string;
+  /** What the seal's signature said, when the scene carries one and a resolver was given. */
+  signature: SignatureState;
+  did?: string;
 }
 
-/** Recompute every hash in manifest.hashes and report what differs. */
-export async function verifyScene(store: FileStore): Promise<VerifyReport> {
+export interface VerifyOptions {
+  /** Resolves a did:web to its document; without it a signed scene reports "unresolved". */
+  resolve?: (did: string) => Promise<DidDocument>;
+}
+
+/**
+ * Recompute every hash in manifest.hashes and report what differs. A
+ * signature is checked against the keys the DID document asserts with;
+ * "forged" means the manifest's hashes are not what the key signed, and
+ * the report is not ok. "unresolved" is not a failure: the hashes still
+ * stand on their own, as they did before Phase 11.
+ */
+export async function verifyScene(
+  store: FileStore,
+  opts: VerifyOptions = {},
+): Promise<VerifyReport> {
   const manifest = await readManifest(store);
-  if (!manifest) return { ok: false, checked: 0, mismatches: [], reason: "not a scene" };
+  if (!manifest)
+    return { ok: false, checked: 0, mismatches: [], reason: "not a scene", signature: "unsigned" };
   if (!manifest.hashes)
-    return { ok: false, checked: 0, mismatches: [], reason: "scene is not sealed" };
+    return {
+      ok: false,
+      checked: 0,
+      mismatches: [],
+      reason: "scene is not sealed",
+      signature: "unsigned",
+    };
+  let signature: SignatureState = "unsigned";
+  const sig = manifest.signature;
+  if (sig) {
+    signature = "unresolved";
+    if (opts.resolve) {
+      try {
+        const doc = await opts.resolve(sig.did);
+        const text = sealText(
+          manifest.scene,
+          manifest.ids ?? Object.keys(manifest.hashes),
+          manifest.hashes,
+        );
+        let good = false;
+        for (const key of assertionKeys(doc))
+          if (await verifyText(key, text, sig.value)) good = true;
+        signature = good ? "verified" : "forged";
+      } catch {
+        signature = "unresolved";
+      }
+    }
+  }
   const mismatches: VerifyReport["mismatches"] = [];
   const entries = Object.entries(manifest.hashes);
   await mapLimit(entries, 64, async ([id, expected]) => {
@@ -58,7 +141,15 @@ export async function verifyScene(store: FileStore): Promise<VerifyReport> {
     if ((await sha256Hex(l ?? "")) !== expected.events) mismatches.push({ id, file: "events" });
   });
   mismatches.sort((a, b) => (a.id + a.file < b.id + b.file ? -1 : 1));
-  return { ok: mismatches.length === 0, checked: entries.length, mismatches };
+  const forged = signature === "forged";
+  return {
+    ok: mismatches.length === 0 && !forged,
+    checked: entries.length,
+    mismatches,
+    signature,
+    ...(sig ? { did: sig.did } : {}),
+    ...(forged ? { reason: "signature does not match the manifest" } : {}),
+  };
 }
 
 /** Everything SPEC.md §10.9 says a round trip must reproduce, in a stable shape. */
