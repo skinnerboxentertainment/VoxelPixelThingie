@@ -1,6 +1,6 @@
 # VoxelPixelThingie — Core Model Specification
 
-Status: Draft v0.3
+Status: Draft v0.4 (§9.5, §9.6, §10 specified, not yet implemented; see the Phase 6 tickets)
 Date: 2026-09-05
 Author: Oscar
 
@@ -27,6 +27,9 @@ define the bit's responsibility toward the renderer (§8).
 | Container | The owner of a set of bits. Mints ids, links neighbors, supplies the event sink. The `Grid` is one container. |
 | Event | One recorded change to a bit. See §9. |
 | Spime | Sterling's term for an object whose identity and full history are knowable through its data. The VPB is designed as one (ADR 0005). |
+| Passport | A bit's own free-form JSON record, carried with its identity (§9.5). |
+| Wrangler | Whoever or whatever changes bits: a person, a tool, a replay. Named on events by the container's wrangler context (§9.6). |
+| Scene | A container's on-disk form: a folder holding a manifest and one folder per bit (§10). |
 
 ## 3. The VoxelPixelBit
 
@@ -38,6 +41,7 @@ A bit is a cube. It has:
   the identity; a bit may move.
 - A presence state: present or absent. An absent bit occupies no cell and
   has no links.
+- A passport: a free-form JSON object owned by the bit (§9.5). Default `{}`.
 - 26 privately owned nodes: 6 faces, 12 edges, 8 vertices.
 - Per-bit state, at minimum a color. Further fields are open (see §8).
 
@@ -333,6 +337,12 @@ mints its own. Ids are opaque strings with no meaning to the model. The
 grid cell is a mutable property. Serialization, movement, and re-expression
 in another renderer preserve the id.
 
+Default minting is UUID version 7 (RFC 9562): globally unique without
+coordination, and sortable by minting time, so a scene's bits list in the
+order they were made. Containers mint their own id the same way. Tests may
+inject a readable counter through `mintId`. An id is never reused, not even
+after `destroyed`.
+
 ### 9.2 Events
 
 Every change to a bit is an event. Events are appended, never edited, to a
@@ -348,10 +358,22 @@ supplied by the container.
 | `unlinked` | neighbor id, slot |
 | `moved` | from, to |
 | `annotated` | free-form key and value |
+| `passport` | the bit's complete new passport (§9.5) |
 | `destroyed` | none; the bit leaves its container |
 
+Every stamped event carries, beside its payload:
+
+| Field | Meaning | Supplied by |
+|-------|---------|-------------|
+| `bit` | the bit's id | container |
+| `seq` | monotonic within the container | container |
+| `time` | milliseconds since the epoch | container clock |
+| `frame` | the container's id: where this happened | container |
+| `actor` | who or what made the change, optional | wrangler context (§9.6) |
+| `cause` | why, optional; a short verb phrase | wrangler context (§9.6) |
+
 The bit's fields are a projection of its log. Folding a bit's events in
-order from `created` reproduces its current state.
+order from `created` reproduces its current state, passport included.
 
 ### 9.3 Where the log lives
 
@@ -367,16 +389,183 @@ The self-test in §8 reads current state only. No part of the render path
 consults the log. `Emission.data` is what a node says to the network;
 provenance is the log, not `data`.
 
-## 10. Open questions
+### 9.5 Passport
+
+Each bit owns one passport: a JSON object of any shape, default `{}`. It is
+the bit's own record, the thing a wrangler would read to learn what this
+bit is, and it travels with the id through every container, export, and
+renderer.
+
+- The model imposes no schema. Keys and values are the wrangler's business.
+- The value must be JSON-serializable. Functions, cycles, and non-finite
+  numbers are rejected at `setPassport`.
+- Replacement is whole: `setPassport(obj)` emits one `passport` event
+  carrying the complete new object. Partial patches are not in v0.4; a
+  wrangler that wants them reads, merges, and sets.
+- Sinks may enforce a size limit and must say so; the model does not. The
+  reference file sink refuses passports over 256 KiB serialized.
+- The passport is distinct from `Emission.data` on a node (what a node says
+  to neighbors) and from `annotated` events (notes in the history that do
+  not change state).
+- Nothing in the render path reads the passport.
+
+### 9.6 Wrangler context
+
+A container holds a current wrangler context, `{ actor?, cause? }`, that
+it stamps onto every event. It is set by whoever is about to change bits
+and cleared or replaced when they are done:
+
+```
+grid.wrangle({ actor: "oscar", cause: "carve tunnel" }, () => { ... });
+```
+
+Inside the callback every event carries those two fields. Outside it they
+are absent. Replay stamps `actor: "replay"` and copies the original
+`cause`. Nested contexts replace, and restore on exit. The context is a
+convenience for honest logs, not a security boundary.
+
+## 10. Persistence
+
+A spime's data trail must be able to leave the process. This section fixes
+the on-disk shapes so that any store that holds files can hold a scene.
+
+### 10.1 Two shapes
+
+| Shape | File | Contents | Written |
+|-------|------|----------|---------|
+| Passport | `passport.json` | the bit as it is now, plus its `seq` | rewritten after each event |
+| Ledger | `events.jsonl` | every stamped event, one JSON object per line | appended, never rewritten except by compaction (§10.7) |
+
+The render list is a third, renderer-facing shape and is not persisted.
+
+### 10.2 Layout
+
+```
+<scene>/
+  manifest.json
+  bits/
+    <bit id>/
+      passport.json
+      events.jsonl
+```
+
+One folder per bit, named by its id. The scene folder is the container's
+on-disk form and is named by the wrangler; the container's id is inside
+`manifest.json`, not in the folder name.
+
+### 10.3 manifest.json
+
+```json
+{
+  "format": "vpb-scene/1",
+  "scene": "<container id>",
+  "created": 1789000000000,
+  "updated": 1789000123456,
+  "bits": 485,
+  "seq": 13842,
+  "hashes": { "<bit id>": { "passport": "sha256:...", "events": "sha256:..." } }
+}
+```
+
+`hashes` is optional. When present it lets an importer check integrity on
+a store that does not address content by hash. `seq` is the container's
+last stamped sequence number.
+
+### 10.4 passport.json
+
+```json
+{
+  "format": "vpb-passport/1",
+  "id": "0192f7a2-3b4c-7d5e-8f60-1a2b3c4d5e6f",
+  "frame": "<container id>",
+  "seq": 1234,
+  "time": 1789000123456,
+  "present": true,
+  "position": [3, 3, 0],
+  "color": 2058987,
+  "emissions": [ { "color": 2058987, "light": 0.6 }, "…26 entries…" ],
+  "passport": { "…the wrangler's blob…" }
+}
+```
+
+`seq` is the last event applied to this bit. Links are not stored: within a
+scene they are derived from positions (§7). Absent bits keep their file so
+their history stays reachable.
+
+### 10.5 events.jsonl
+
+One stamped event per line, exactly the object of §9.2 serialized as JSON,
+no wrapping array, newline-terminated. Lines are appended in `seq` order.
+A reader that finds a truncated final line (a crash mid-write) discards it
+and treats the file as ending at the previous line.
+
+### 10.6 Write ordering
+
+A file sink applies each event in this order:
+
+1. Append the event line to `events.jsonl` and flush.
+2. Rewrite `passport.json` by writing a temporary file and renaming it over
+   the old one.
+3. Update `manifest.json` the same way, at most once per batch.
+
+So at every instant `passport.seq` is at most the last event's `seq`, and
+an importer that finds `passport.seq` behind the ledger applies the tail.
+The ledger is the truth; the passport is a cache of it.
+
+### 10.7 Retention and compaction
+
+This closes former open question 5.
+
+- A passport is a snapshot at its `seq`. Events with `seq` at or below the
+  passport's are derivable from it and may be dropped by compaction.
+- Compaction keeps a configurable tail of the last `K` events per bit
+  (default 64) so recent history stays readable without the passport.
+- `linked` and `unlinked` events are derivable from the other events within
+  a scene and are dropped first. This was verified for one carve sequence
+  in Phase 1 and is not proven in general; a compaction that drops them
+  records `"compacted": true` in the manifest so an importer knows the
+  ledger is not complete.
+- Compaction is a sink operation, run on demand, never inside `evaluate`.
+
+### 10.8 Stores
+
+The layout is plain files, so a scene lives on anything that holds files.
+The model names no store. The reference sinks are:
+
+| Sink | Where | Notes |
+|------|-------|-------|
+| `FileSink` | a folder, Node `fs` | the reference implementation of §10.6 |
+| `OpfsSink` | the browser's origin private file system | same layout, no server, per-origin |
+| `MemorySink` | an in-memory map of paths to strings | tests |
+
+A scene folder mirrored to a distributed store is still a scene. Git and
+GitHub give append-only history and a fingerprint per file for free. IPFS
+names each file by its content hash, so the hash of a passport is proof of
+that passport. Hypercore is itself an append-only log and could carry
+`events.jsonl` line for line. Syncthing mirrors a folder between devices.
+None of these need the model to change; they need the folder.
+
+### 10.9 The spime test
+
+A scene exported through a sink and imported through `openScene` must
+reproduce every bit: same ids, same positions, same emissions, same
+passports, same links, and the same render flags after `evaluate` with the
+same camera. That equality, across a round trip through any store, is what
+"the same bit" means. It is the oracle for every persistence ticket.
+
+## 11. Open questions
 
 1. What fields does a bit hold beyond position, presence, and color?
 2. Do links carry state in v0.2, and if so which fields?
 3. Rendering: real 3D or an isometric 2D projection of pixels?
 4. Does a hidden face (one with a link) emit into the network only, or can it
    also affect rendering, for example as light bleed?
-5. What retention and compaction policy should a recording sink apply?
+5. Should large passports get a patch event (RFC 6902) instead of whole
+   replacement, and at what size?
+6. Should `manifest.json` hashes be mandatory on stores without content
+   addressing, and who verifies them on import?
 
-## 11. Decisions log
+## 12. Decisions log
 
 | Date | Decision |
 |------|----------|
@@ -390,3 +579,5 @@ provenance is the log, not `data`.
 | 2026-09-05 | Emission is a fixed struct of optional color, light, data (§3.2). Closes former open question 2. |
 | 2026-09-05 | Back-facing test is inclusive at the plane with ε = 1e-4 on the cosine (§8.2). |
 | 2026-09-05 | Orthographic cameras test facing against a direction, exclusively at the plane, so a straight-down view renders exactly 9 nodes per bit (§8.2). |
+| 2026-09-06 | Bits carry a free-form JSON passport, replaced whole by a `passport` event (§9.5). Ids default to UUID v7 for bits and containers (§9.1). Events carry `frame`, and optional `actor` and `cause` from a wrangler context (§9.2, §9.6). |
+| 2026-09-06 | Persistence is two files per bit, passport and ledger, in a folder per scene, written ledger-first, store-agnostic; compaction keeps a tail and may drop derivable link events (§10). Closes former open question 5. ADR 0006. |
