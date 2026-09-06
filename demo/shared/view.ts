@@ -110,3 +110,49 @@ export function orbit(v: View, dYawPx: number, dPitchPx: number): View {
   const pitch = Math.max(-1.5, Math.min(1.5, v.pitch + dPitchPx * 0.01));
   return { ...v, yaw, pitch };
 }
+
+/**
+ * A keyboard cursor over the grid (PLAN-4.md Phase 24): arrows move it in
+ * x and y, PageUp and PageDown (or shift with an arrow) in z, wrapping
+ * inside the scene's bounds. Shared by the demos so mouse and keyboard
+ * end in one selection path.
+ */
+export function stepCursor(
+  cursor: Vec3,
+  key: string,
+  shift: boolean,
+  size: number,
+): Vec3 | undefined {
+  const wrap = (v: number) => ((v % size) + size) % size;
+  let [x, y, z] = cursor;
+  switch (key) {
+    case "ArrowLeft":
+      if (shift) z -= 1;
+      else x -= 1;
+      break;
+    case "ArrowRight":
+      if (shift) z += 1;
+      else x += 1;
+      break;
+    case "ArrowUp":
+      if (shift) z += 1;
+      else y += 1;
+      break;
+    case "ArrowDown":
+      if (shift) z -= 1;
+      else y -= 1;
+      break;
+    case "PageUp":
+      z += 1;
+      break;
+    case "PageDown":
+      z -= 1;
+      break;
+    default:
+      return undefined;
+  }
+  return [wrap(x), wrap(y), wrap(z)];
+}
+
+export const CURSOR_HELP =
+  "Scene. Arrow keys move the cursor, Page Up and Page Down move it in depth, Enter opens the bit under it, Delete removes it, Escape closes the panel.";

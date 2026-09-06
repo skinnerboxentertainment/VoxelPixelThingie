@@ -18,6 +18,12 @@
       #passport { width: 100%; box-sizing: border-box; background: #0b0f19; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; font: 12px/1.4 ui-monospace, monospace; padding: 6px; }
       .row { display: flex; gap: 8px; margin-top: 6px; }
       #panel-error { color: #f85149; min-height: 1.2em; margin-top: 4px; }
+      #stage:focus-visible { outline: 2px solid #58a6ff; outline-offset: -2px; }
+      button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible { outline: 2px solid #58a6ff; outline-offset: 2px; }
+      #text-view { position: fixed; right: 12px; top: 48px; bottom: 12px; width: 420px; overflow: auto; background: rgba(13,17,23,.95); border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; z-index: 3; font-family: ui-monospace, monospace; font-size: 12px; }
+      #text-view h2 { font-size: 13px; margin: 0 0 6px; }
+      #text-view ol { margin: 0; padding-left: 28px; }
+      .muted { color: #8b949e; }
     </style>
   </head>
   <body>
@@ -28,13 +34,16 @@
       <button type="button" id="load" title="read the saved scene back">load</button>
       <label title="stream every change to the browser's private file system through a worker"><input type="checkbox" id="autosave" /> autosave</label>
       <button type="button" id="load-autosave" title="open the autosaved scene">load autosave</button>
-      <span id="status"></span>
+      <button type="button" id="text-toggle" aria-pressed="false" aria-controls="text-view">text view</button>
+      <span id="status" role="status" aria-live="polite"></span>
       <span class="hint">drag to orbit · wheel to zoom · click a bit to open its passport</span>
     </div>
-    <canvas id="stage"></canvas>
-    <div id="hud"></div>
-    <div id="panel" hidden>
+    <canvas id="stage" tabindex="0" aria-label="Scene. Arrow keys move the cursor, Page Up and Page Down move it in depth, Enter opens the bit under it, Delete removes it, Escape closes the panel."></canvas>
+    <div id="hud" aria-hidden="true"></div>
+    <section id="text-view" hidden aria-live="polite" aria-label="the scene as text"><h2>The scene as text</h2><p id="text-head"></p><ol id="text-list"></ol></section>
+    <div id="panel" hidden role="dialog" aria-labelledby="panel-title">
       <div id="panel-title"></div>
+      <label for="passport" class="muted">passport, a JSON object</label>
       <textarea id="passport" rows="8" spellcheck="false"></textarea>
       <div class="row">
         <button type="button" id="apply">set passport</button>
@@ -46,7 +55,7 @@
         <button type="button" id="run-job" title="ask this bit for work; request, result, audit, and reward land in its ledger">run job</button>
       </div>
       <div id="job-audit" class="muted"></div>
-      <div id="panel-error"></div>
+      <div id="panel-error" role="alert"></div>
     </div>
     <script type="module" src="./main.ts"></script>
   </body>

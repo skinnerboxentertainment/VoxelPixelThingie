@@ -31,6 +31,7 @@
     "scene:search": "node --experimental-strip-types scripts/scene-search.ts",
     "scene:gltf": "node --experimental-strip-types scripts/export-gltf.ts",
     "scene:gltf:import": "node --experimental-strip-types scripts/import-gltf.ts",
+    "scene:text": "node --experimental-strip-types scripts/scene-text.ts",
     "scene:pin": "node --experimental-strip-types scripts/pin-pinata.ts",
     "scene:sign": "node --experimental-strip-types scripts/sign-scene.ts",
     "release:build": "node --experimental-strip-types scripts/release-build.ts",

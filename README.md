@@ -69,6 +69,9 @@ manifest and rebuilt when the scene moves on),
 `npm run scene:gltf -- <folder|pack> <out.glb>` and `npm run scene:gltf:import -- <in.glb> <folder>`
 (the scene as glTF 2.0 for Blender and the web, each bit's identity in
 extras and the whole pack inside so a round trip keeps the history),
+`npm run scene:text -- <folder|pack> [--limit n]` (the scene as words, the
+same lines the demos' text view reads aloud; every demo control works by
+keyboard and the pages pass an axe audit in CI),
 `npm run scene:policy -- <folder> <bit id>` (a bit's policy, the rules in
 its passport for who may change it, rendered as ODRL 2.2),
 `npm run mcp -- [--scene <folder>]` (serve the scene over the Model Context

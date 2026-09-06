@@ -9,6 +9,7 @@ import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { VRButton } from "three/addons/webxr/VRButton.js";
 import { pass } from "three/tsl";
 import * as THREE from "three/webgpu";
+import type { Vec3 } from "../../src/index.ts";
 import {
   type BitEvent,
   type BitHandle,
@@ -45,6 +46,8 @@ import {
 } from "../shared/gpu-jobs.ts";
 import { LedBridgeSink } from "../shared/led-bridge.ts";
 import { COLORS, referenceScene, sceneCenter } from "../shared/scene.ts";
+import { sceneTextLines } from "../shared/text.ts";
+import { stepCursor } from "../shared/view.ts";
 
 const canvas = document.getElementById("stage") as HTMLCanvasElement;
 const hud = document.getElementById("hud")!;
@@ -76,6 +79,14 @@ let recorder: RecordingSink | null = null;
 let grid: Container = makeScene(size);
 let cameraDirty = true;
 let selected: BitHandle | null = null;
+/** Every change from this page's controls is recorded under one actor, whichever input made it. */
+const ACTOR = "demo:three";
+const asUser = <T>(cause: string, fn: () => T): T => grid.wrangle({ actor: ACTOR, cause }, fn);
+/** Motion the viewer asked to reduce: no damping, a slower HUD, and nothing moves on its own. */
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+document.body.dataset.motion = reducedMotion ? "reduce" : "no-preference";
+const HUD_INTERVAL_MS = reducedMotion ? 1000 : 0;
+let hudAt = 0;
 
 function makeScene(n: number): Container {
   recorder = n <= SAVE_MAX ? new RecordingSink() : null;
@@ -183,7 +194,7 @@ function syncInstances(): void {
 // ---------------------------------------------------------------- camera & controls
 
 const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true;
+controls.enableDamping = !reducedMotion;
 controls.dampingFactor = 0.12;
 controls.addEventListener("change", () => {
   cameraDirty = true;
@@ -283,7 +294,10 @@ function tick(): void {
   updateModel();
   if (postProcessing) postProcessing.render();
   else renderer?.render(scene, camera);
-  if (frameTimes.length % 30 === 0) updateHud();
+  if (HUD_INTERVAL_MS ? now - hudAt >= HUD_INTERVAL_MS : frameTimes.length % 30 === 0) {
+    hudAt = now;
+    updateHud();
+  }
   document.body.dataset.ready = "1";
 }
 
@@ -416,21 +430,112 @@ canvas.addEventListener("pointerup", (e) => {
 
 // ---------------------------------------------------------------- passport panel
 
-function select(bit: BitHandle | null): void {
+function select(bit: BitHandle | null, focusPanel = false): void {
   selected = bit;
   panel.hidden = !bit;
   panelError.textContent = "";
   if (!bit) return;
   panelTitle.textContent = `bit ${bit.id}\nat ${bit.key}`;
   passportBox.value = JSON.stringify(bit.passport, null, 2);
+  if (focusPanel) passportBox.focus();
 }
+
+// ---------------------------------------------------------------- keyboard (Phase 24)
+
+let cursor: Vec3 | null = null;
+const cursorBox = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(1.08, 1.08, 1.08)),
+  new THREE.LineBasicMaterial({ color: 0xffd33d }),
+);
+cursorBox.visible = false;
+scene.add(cursorBox);
+
+function announce(text: string): void {
+  status.textContent = text;
+}
+
+function setCursor(c: Vec3 | null): void {
+  cursor = c;
+  cursorBox.visible = c !== null;
+  if (c) {
+    cursorBox.position.set(c[0], c[1], c[2]);
+    const bit = grid.at(c[0], c[1], c[2]);
+    announce(
+      `cursor at ${c.join(",")}: ${bit ? `${bit.present ? "bit" : "absent bit"} ${bit.id}` : "empty"}`,
+    );
+  }
+  cameraDirty = true;
+}
+
+canvas.addEventListener("keydown", (e) => {
+  const start: Vec3 = cursor ?? [0, 0, 0];
+  const next = stepCursor(start, e.key, e.shiftKey, size);
+  if (next) {
+    e.preventDefault();
+    setCursor(cursor ? next : start);
+    return;
+  }
+  if (!cursor) {
+    if (e.key === "Enter" || e.key === "Delete") setCursor(start);
+    return;
+  }
+  const bit = grid.at(cursor[0], cursor[1], cursor[2]);
+  if (e.key === "Enter") {
+    e.preventDefault();
+    if (bit?.present) select(bit, true);
+    else announce(`nothing to open at ${cursor.join(",")}`);
+  } else if (e.key === "Delete" || e.key === "Backspace") {
+    e.preventDefault();
+    if (bit?.present) {
+      removeBit(bit);
+      if (selected === bit) select(null);
+      announce(`removed bit ${bit.id} at ${cursor.join(",")}`);
+    }
+  } else if (e.key === "Escape") {
+    select(null);
+    setCursor(null);
+  }
+});
+panel.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    select(null);
+    canvas.focus();
+  }
+});
+
+// ---------------------------------------------------------------- the scene as text (Phase 24)
+
+const textView = document.getElementById("text-view") as HTMLElement;
+const textToggle = document.getElementById("text-toggle") as HTMLButtonElement;
+function renderText(): void {
+  if (textView.hidden) return;
+  const lines = sceneTextLines(grid);
+  document.getElementById("text-head")!.textContent = lines[0] ?? "";
+  const list = document.getElementById("text-list")!;
+  list.replaceChildren(
+    ...lines.slice(1).map((l) => {
+      const li = document.createElement("li");
+      li.textContent = l;
+      return li;
+    }),
+  );
+}
+function showText(on: boolean): void {
+  textView.hidden = !on;
+  textToggle.setAttribute("aria-pressed", String(on));
+  renderText();
+}
+textToggle.addEventListener("click", () => showText(Boolean(textView.hidden)));
+if (new URLSearchParams(location.search).get("view") === "text") showText(true);
 
 function applyPassport(): boolean {
   if (!selected) return false;
   try {
     const obj = JSON.parse(passportBox.value) as JsonObject;
-    selected.setPassport(obj);
+    const bit = selected;
+    asUser("set passport", () => bit.setPassport(obj));
     panelError.textContent = "";
+    renderText();
     return true;
   } catch (err) {
     panelError.textContent = (err as Error).message;
@@ -605,8 +710,9 @@ autosaveBox.addEventListener("change", () => void setAutosave(autosaveBox.checke
 loadAutosaveButton.addEventListener("click", () => void loadAutosave());
 
 function removeBit(bit: BitHandle): void {
-  grid.remove(bit);
+  asUser("remove bit", () => grid.remove(bit));
   cameraDirty = true;
+  renderText();
   if (!renderer) {
     updateModel();
   }
@@ -616,6 +722,8 @@ function loadSize(n: number): void {
   size = n;
   grid = makeScene(size);
   select(null);
+  setCursor(null);
+  renderText();
   cameraDirty = true;
   if (autosaveBox.checked) void setAutosave(true);
   frameScene();
@@ -696,6 +804,12 @@ resetButton.addEventListener("click", () => loadSize(size));
   jobRecords: (id: string) => jobsOf((recorder?.events ?? []).filter((e) => e.bit === id)),
   eventCount: () => recorder?.events.length ?? -1,
   lastEvent: (): BitEvent | undefined => recorder?.events[recorder.events.length - 1],
+  cursor: () => cursor,
+  bitAt: (x: number, y: number, z: number) => grid.at(x, y, z)?.id,
+  motion: () => document.body.dataset.motion,
+  hudIntervalMs: () => HUD_INTERVAL_MS,
+  textLines: () => sceneTextLines(grid),
+  cameraPosition: () => [camera.position.x, camera.position.y, camera.position.z],
 };
 
 // ---------------------------------------------------------------- go

@@ -38,32 +38,32 @@
         <label for="id">bit id</label><input id="id" name="id" placeholder="UUID, or first" />
         <span></span><span><button type="submit">open</button></span>
       </form>
-      <p id="error"></p>
+      <p id="error" role="status" aria-live="polite"></p>
       <section id="bit" hidden>
         <div class="head">
           <div>
             <h2>Identity</h2>
-            <table>
-              <tr><th>bit</th><td class="mono" id="f-id"></td></tr>
-              <tr><th>container</th><td class="mono" id="f-frame"></td></tr>
-              <tr><th>position</th><td class="mono" id="f-position"></td></tr>
-              <tr><th>state</th><td id="f-state"></td></tr>
-              <tr><th>color</th><td id="f-color"></td></tr>
-              <tr><th>last event</th><td class="mono" id="f-seq"></td></tr>
-              <tr><th>EPCIS id</th><td class="mono" id="f-epc"></td></tr>
+            <table aria-label="identity">
+              <tr><th scope="row">bit</th><td class="mono" id="f-id"></td></tr>
+              <tr><th scope="row">container</th><td class="mono" id="f-frame"></td></tr>
+              <tr><th scope="row">position</th><td class="mono" id="f-position"></td></tr>
+              <tr><th scope="row">state</th><td id="f-state"></td></tr>
+              <tr><th scope="row">color</th><td id="f-color"></td></tr>
+              <tr><th scope="row">last event</th><td class="mono" id="f-seq"></td></tr>
+              <tr><th scope="row">EPCIS id</th><td class="mono" id="f-epc"></td></tr>
             </table>
           </div>
           <div>
-            <canvas id="qr" width="200" height="200"></canvas>
+            <canvas id="qr" width="200" height="200" role="img" aria-label="QR code of this page's address"></canvas>
             <div id="qr-url" class="mono muted"></div>
           </div>
         </div>
         <h2>Passport</h2>
         <pre id="f-passport"></pre>
         <h2>Emissions, 26 nodes</h2>
-        <table id="f-emissions"><thead><tr><th>slot</th><th>node</th><th>color</th><th>light</th><th>data</th></tr></thead><tbody></tbody></table>
+        <table id="f-emissions"><thead><tr><th scope="col">slot</th><th scope="col">node</th><th scope="col">color</th><th scope="col">light</th><th scope="col">data</th></tr></thead><tbody></tbody></table>
         <h2>History</h2>
-        <table id="f-events"><thead><tr><th>seq</th><th>type</th><th>time</th><th>detail</th><th>actor</th><th>cause</th></tr></thead><tbody></tbody></table>
+        <table id="f-events"><thead><tr><th scope="col">seq</th><th scope="col">type</th><th scope="col">time</th><th scope="col">detail</th><th scope="col">actor</th><th scope="col">cause</th></tr></thead><tbody></tbody></table>
       </section>
       <p class="muted">Source: <a href="https://github.com/skinnerboxentertainment/VoxelPixelThingie">github.com/skinnerboxentertainment/VoxelPixelThingie</a> · <a href="../">demos</a> · <a href="../reader/?scene=builtin">reader</a></p>
     </main>
