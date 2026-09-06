@@ -10,9 +10,15 @@ import { VRButton } from "three/addons/webxr/VRButton.js";
 import { pass } from "three/tsl";
 import * as THREE from "three/webgpu";
 import {
+  type BitEvent,
   type Grid,
+  type JsonObject,
+  OpfsStore,
+  openScene,
+  RecordingSink,
   type RenderItem,
   renderList,
+  SceneSink,
   signsOf,
   type VoxelPixelBit,
 } from "../../src/index.ts";
@@ -23,12 +29,28 @@ const hud = document.getElementById("hud")!;
 const status = document.getElementById("status")!;
 const sizeSelect = document.getElementById("size") as HTMLSelectElement;
 const resetButton = document.getElementById("reset") as HTMLButtonElement;
+const saveButton = document.getElementById("save") as HTMLButtonElement;
+const loadButton = document.getElementById("load") as HTMLButtonElement;
+const panel = document.getElementById("panel") as HTMLDivElement;
+const panelTitle = document.getElementById("panel-title")!;
+const passportBox = document.getElementById("passport") as HTMLTextAreaElement;
+const panelError = document.getElementById("panel-error")!;
+const SCENE_PATH = "vpb/scenes/three";
 
 // ---------------------------------------------------------------- model
 
 let size = 8;
-let grid: Grid = referenceScene(size);
+/** Sizes that record a full ledger and can be saved; larger scenes render only. */
+const SAVE_MAX = 16;
+let recorder: RecordingSink | null = null;
+let grid: Grid = makeScene(size);
 let cameraDirty = true;
+let selected: VoxelPixelBit | null = null;
+
+function makeScene(n: number): Grid {
+  recorder = n <= SAVE_MAX ? new RecordingSink() : null;
+  return referenceScene(n, recorder ?? undefined);
+}
 
 // ---------------------------------------------------------------- scene
 
@@ -263,8 +285,84 @@ canvas.addEventListener("pointerup", (e) => {
   const hit = raycaster.intersectObject(faces.mesh, false)[0];
   if (!hit || hit.instanceId === undefined) return;
   const bit = faces.bits[hit.instanceId];
-  if (bit) removeBit(bit);
+  if (bit) select(bit);
 });
+
+// ---------------------------------------------------------------- passport panel
+
+function select(bit: VoxelPixelBit | null): void {
+  selected = bit;
+  panel.hidden = !bit;
+  panelError.textContent = "";
+  if (!bit) return;
+  panelTitle.textContent = `bit ${bit.id}\nat ${bit.key}`;
+  passportBox.value = JSON.stringify(bit.passport, null, 2);
+}
+
+function applyPassport(): boolean {
+  if (!selected) return false;
+  try {
+    const obj = JSON.parse(passportBox.value) as JsonObject;
+    selected.setPassport(obj);
+    panelError.textContent = "";
+    return true;
+  } catch (err) {
+    panelError.textContent = (err as Error).message;
+    return false;
+  }
+}
+
+document.getElementById("apply")!.addEventListener("click", applyPassport);
+document.getElementById("close")!.addEventListener("click", () => select(null));
+document.getElementById("remove")!.addEventListener("click", () => {
+  if (selected) removeBit(selected);
+  select(null);
+});
+
+// ---------------------------------------------------------------- save and load (SPEC.md §10, OpfsStore)
+
+async function save(): Promise<{ ok: boolean; reason?: string; events?: number }> {
+  if (!recorder) return { ok: false, reason: `scenes above ${SAVE_MAX}³ are not recorded` };
+  if (!OpfsStore.available()) return { ok: false, reason: "no origin private file system" };
+  status.textContent = "saving…";
+  await OpfsStore.remove(SCENE_PATH);
+  const store = await OpfsStore.open(SCENE_PATH);
+  const sink = new SceneSink(store);
+  for (const e of recorder.events) sink.record(e);
+  await sink.flush();
+  status.textContent = `saved ${recorder.events.length} events`;
+  return { ok: true, events: recorder.events.length };
+}
+
+async function load(): Promise<{ ok: boolean; reason?: string; bits?: number }> {
+  if (!OpfsStore.available()) return { ok: false, reason: "no origin private file system" };
+  let store: OpfsStore;
+  try {
+    store = await OpfsStore.open(SCENE_PATH, { create: false });
+  } catch {
+    status.textContent = "nothing saved yet";
+    return { ok: false, reason: "no saved scene" };
+  }
+  status.textContent = "loading…";
+  try {
+    recorder = new RecordingSink();
+    const loaded = await openScene(store, { sink: recorder });
+    grid = loaded;
+    size = Math.max(8, Math.ceil(Math.cbrt(loaded.size)));
+    select(null);
+    cameraDirty = true;
+    frameScene();
+    status.textContent = `loaded ${loaded.size} bits`;
+    if (!renderer) updateModel();
+    return { ok: true, bits: loaded.size };
+  } catch (err) {
+    status.textContent = `load failed: ${(err as Error).message}`;
+    return { ok: false, reason: (err as Error).message };
+  }
+}
+
+saveButton.addEventListener("click", () => void save());
+loadButton.addEventListener("click", () => void load());
 
 function removeBit(bit: VoxelPixelBit): void {
   grid.remove(bit);
@@ -276,7 +374,8 @@ function removeBit(bit: VoxelPixelBit): void {
 
 function loadSize(n: number): void {
   size = n;
-  grid = referenceScene(size);
+  grid = makeScene(size);
+  select(null);
   cameraDirty = true;
   frameScene();
   frameTimes.length = 0;
@@ -322,6 +421,20 @@ resetButton.addEventListener("click", () => loadSize(size));
   }),
   loadSize,
   backend: () => backend,
+  save,
+  load,
+  selectFirstFaceBit: () => {
+    const bit = faces.bits[0];
+    if (bit) select(bit);
+    return bit?.id;
+  },
+  setPassportOnSelected: (obj: JsonObject) => {
+    passportBox.value = JSON.stringify(obj);
+    return applyPassport();
+  },
+  passportOf: (id: string) => grid.get(id)?.passport,
+  eventCount: () => recorder?.events.length ?? -1,
+  lastEvent: (): BitEvent | undefined => recorder?.events[recorder.events.length - 1],
 };
 
 // ---------------------------------------------------------------- go

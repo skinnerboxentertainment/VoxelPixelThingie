@@ -12,6 +12,11 @@ type Hook = {
   counts(): Counts;
   frameStats(): { p50: number; p95: number; n: number };
   frameCount(): number;
+  save(): Promise<{ ok: boolean; reason?: string; events?: number }>;
+  load(): Promise<{ ok: boolean; reason?: string; bits?: number }>;
+  selectFirstFaceBit(): string | undefined;
+  setPassportOnSelected(obj: unknown): boolean;
+  passportOf(id: string): unknown;
   removeCenterFacingBit(): string | undefined;
   loadSize(n: number): void;
   backend(): string;
@@ -73,3 +78,53 @@ test("renderer reports a backend and frames are being timed when it exists", asy
 });
 
 void hook;
+
+test("save to OPFS, reload the page, load: counts and a passport survive", async ({ page }) => {
+  // OPFS writes one file per handle operation; 8^3 is about a thousand of them on CI's software stack.
+  test.setTimeout(180_000);
+  const w = () => (window as unknown as { __vpb: Hook }).__vpb;
+  // Carve three bits and give one a passport.
+  for (let i = 0; i < 3; i++) {
+    await page.evaluate(() => (window as unknown as { __vpb: Hook }).__vpb.removeCenterFacingBit());
+  }
+  const id = await page.evaluate(() =>
+    (window as unknown as { __vpb: Hook }).__vpb.selectFirstFaceBit(),
+  );
+  expect(id).toBeTruthy();
+  const applied = await page.evaluate(() =>
+    (window as unknown as { __vpb: Hook }).__vpb.setPassportOnSelected({ name: "keeper", n: 7 }),
+  );
+  expect(applied).toBe(true);
+  const before = await counts(page);
+  expect(before.bits).toBe(482);
+  const saved = await page.evaluate(() => (window as unknown as { __vpb: Hook }).__vpb.save());
+  expect(saved.ok).toBe(true);
+
+  await page.reload();
+  await page.waitForSelector("body[data-ready='1']", { timeout: 60_000 });
+  const fresh = await counts(page);
+  expect(fresh.bits).toBe(485);
+  const loaded = await page.evaluate(() => (window as unknown as { __vpb: Hook }).__vpb.load());
+  expect(loaded.ok).toBe(true);
+  await page.waitForTimeout(200);
+  const after = await counts(page);
+  expect(after.bits).toBe(before.bits);
+  expect(after.face).toBe(before.face);
+  const passport = await page.evaluate(
+    (bitId) => (window as unknown as { __vpb: Hook }).__vpb.passportOf(bitId),
+    id as string,
+  );
+  expect(passport).toEqual({ name: "keeper", n: 7 });
+  void w;
+});
+
+test("a fresh browser context has no saved scene and says so", async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto("/three/");
+  await page.waitForSelector("body[data-ready='1']", { timeout: 60_000 });
+  const loaded = await page.evaluate(() => (window as unknown as { __vpb: Hook }).__vpb.load());
+  expect(loaded.ok).toBe(false);
+  expect(loaded.reason).toMatch(/no saved scene|no origin private file system/);
+  await context.close();
+});

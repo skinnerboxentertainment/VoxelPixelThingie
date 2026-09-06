@@ -5,5 +5,6 @@ export * from "./render-list.ts";
 export * from "./scene.ts";
 export * from "./slots.ts";
 export * from "./store.ts";
+export * from "./store-opfs.ts";
 export * from "./uuid.ts";
 export * from "./vpb.ts";
