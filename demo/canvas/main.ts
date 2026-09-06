@@ -5,14 +5,17 @@
  * is drawn; this file only draws it.
  */
 import {
+  type BitHandle,
+  EDGE_SLOTS,
+  FACE_SLOTS,
   type Grid,
   localCenterOf,
   nodeVertices,
   type RenderItem,
   renderList,
   signsOf,
+  VERTEX_SLOTS,
   type Vec3,
-  type VoxelPixelBit,
 } from "../../src/index.ts";
 import { COLORS, referenceScene, sceneCenter } from "../shared/scene.ts";
 import {
@@ -33,7 +36,7 @@ const buttons = [...document.querySelectorAll<HTMLButtonElement>("button[data-mo
 const grid: Grid = referenceScene();
 const target = sceneCenter();
 let view: View = viewForMode("cube", target);
-let lastPick: { bit: VoxelPixelBit; polys: { pts: { x: number; y: number }[] }[] }[] = [];
+let lastPick: { bit: BitHandle; polys: { pts: { x: number; y: number }[] }[] }[] = [];
 
 function hex(n: number, alpha = 1): string {
   const r = (n >> 16) & 255;
@@ -48,7 +51,7 @@ function shade(color: number, k: number): number {
 }
 
 /** The four corners of a face in loop order. */
-function faceCorners(bit: VoxelPixelBit, slot: number): Vec3[] {
+function faceCorners(bit: BitHandle, slot: number): Vec3[] {
   const signs = signsOf(slot);
   const axis = signs.findIndex((s) => s !== null);
   const others = [0, 1, 2].filter((a) => a !== axis);
@@ -67,7 +70,7 @@ function faceCorners(bit: VoxelPixelBit, slot: number): Vec3[] {
   });
 }
 
-function edgeEnds(bit: VoxelPixelBit, slot: number): Vec3[] {
+function edgeEnds(bit: BitHandle, slot: number): Vec3[] {
   return nodeVertices(slot).map((v) => {
     const c = localCenterOf(v);
     return [bit.position[0] + c[0], bit.position[1] + c[1], bit.position[2] + c[2]];
@@ -88,7 +91,7 @@ function draw(): void {
   const project = projector(view, basis, canvas.width, canvas.height);
 
   // Group by bit, sort far to near.
-  const byBit = new Map<VoxelPixelBit, RenderItem[]>();
+  const byBit = new Map<BitHandle, RenderItem[]>();
   for (const it of items) {
     let arr = byBit.get(it.bit);
     if (!arr) {
@@ -230,9 +233,9 @@ function pick(x: number, y: number, restore: boolean): void {
     if (polys.some((p) => inside(p.pts, x, y))) {
       if (restore) {
         // Restore: put back any absent neighbor cell adjacent to this bit's face.
-        for (const n of bit.nodes) {
-          if (n.kind !== "face" || n.links.length) continue;
-          const o = localCenterOf(n.slot);
+        for (const slot of FACE_SLOTS) {
+          if (bit.linkCountOf(slot)) continue;
+          const o = localCenterOf(slot);
           const cell: Vec3 = [
             bit.position[0] + o[0] * 2,
             bit.position[1] + o[1] * 2,
@@ -240,14 +243,8 @@ function pick(x: number, y: number, restore: boolean): void {
           ];
           if (!grid.has(cell) && cell.every((c) => c >= 0 && c < 8)) {
             const nb = grid.add(cell, { emission: { color: COLORS.face, light: 0.6 } });
-            nb.emitAll(
-              nb.nodesOfKind("edge").map((m) => m.slot),
-              { color: COLORS.edge, light: 1 },
-            );
-            nb.emitAll(
-              nb.nodesOfKind("vertex").map((m) => m.slot),
-              { color: COLORS.vertex, light: 1 },
-            );
+            nb.emitAll(EDGE_SLOTS, { color: COLORS.edge, light: 1 });
+            nb.emitAll(VERTEX_SLOTS, { color: COLORS.vertex, light: 1 });
             break;
           }
         }

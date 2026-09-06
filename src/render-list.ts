@@ -3,11 +3,12 @@
  * the self-test and hands back what a renderer needs and nothing else.
  */
 
-import { type NodeKind, outwardOf, type Slot } from "./slots.ts";
-import type { Emission, Vec3, VoxelPixelBit } from "./vpb.ts";
+import type { BitHandle } from "./container.ts";
+import { kindOf, type NodeKind, outwardOf, type Slot } from "./slots.ts";
+import type { Emission, Vec3 } from "./vpb.ts";
 
 export interface RenderItem {
-  readonly bit: VoxelPixelBit;
+  readonly bit: BitHandle;
   readonly slot: Slot;
   readonly kind: NodeKind;
   readonly emission: Emission;
@@ -18,20 +19,19 @@ export interface RenderItem {
 }
 
 /** Call after evaluate(). Bits outside the render cycle contribute nothing. */
-export function renderList(bits: Iterable<VoxelPixelBit>): RenderItem[] {
+export function renderList(bits: Iterable<BitHandle>): RenderItem[] {
   const out: RenderItem[] = [];
   for (const bit of bits) {
     if (!bit.renderCycle) continue;
     for (const slot of bit.open) {
-      const n = bit.nodes[slot]!;
-      if (!n.renderEnabled) continue;
+      if (!bit.renderEnabledOf(slot)) continue;
       out.push({
         bit,
-        slot: n.slot,
-        kind: n.kind,
-        emission: n.emission,
-        center: bit.nodeCenter(n.slot),
-        outward: outwardOf(n.slot),
+        slot,
+        kind: kindOf(slot),
+        emission: bit.emissionOf(slot),
+        center: bit.nodeCenter(slot),
+        outward: outwardOf(slot),
       });
     }
   }

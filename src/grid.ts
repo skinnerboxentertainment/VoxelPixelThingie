@@ -6,6 +6,7 @@
  * their own ids and never manage their own adjacency.
  */
 
+import type { AddOptions, BitHandle, BitRecord, Container } from "./container.ts";
 import {
   type BitEvent,
   type BitEventBody,
@@ -42,7 +43,7 @@ const NEIGHBOR_OFFSETS: readonly Vec3[] = (() => {
   return out;
 })();
 
-export class Grid {
+export class Grid implements Container {
   /** Immutable container identity; the `frame` on every event it stamps. */
   readonly id: string;
   #wrangler: WranglerContext = {};
@@ -135,8 +136,13 @@ export class Grid {
     return this.#byKey.values();
   }
 
+  /** Records for every bit, sorted by id. Call after evaluate() for meaningful render fields. */
+  snapshot(): BitRecord[] {
+    return [...this.#byKey.values()].map((b) => b.record()).sort((a, b) => (a.id < b.id ? -1 : 1));
+  }
+
   /** Create a bit at a free cell, mint its id, and link it to every present neighbor. */
-  add(position: Vec3, opts: GridAddOptions = {}): VoxelPixelBit {
+  add(position: Vec3, opts: AddOptions = {}): VoxelPixelBit {
     const key = VoxelPixelBit.keyOf(position);
     if (this.#byKey.has(key)) throw new Error(`cell ${key} is occupied`);
     const id = opts.id ?? this.#mintId();
@@ -164,19 +170,25 @@ export class Grid {
   }
 
   /** Toggle presence through the container so an absent bit relinks when it returns. */
-  setPresent(bit: VoxelPixelBit, present: boolean): void {
-    if (this.#byId.get(bit.id) !== bit) throw new Error(`bit ${bit.id} is not in this grid`);
+  setPresent(handle: BitHandle, present: boolean): void {
+    const bit = this.#own(handle);
     if (bit.present === present) return;
     bit.setPresent(present);
     if (present) this.#linkNeighbors(bit);
     this.#awakeDirty = true;
   }
 
+  #own(handle: BitHandle): VoxelPixelBit {
+    const bit = this.#byId.get(handle.id);
+    if (!bit) throw new Error(`bit ${handle.id} is not in this grid`);
+    return bit;
+  }
+
   /** Unlink and drop a bit. Returns false if it was not in this grid. */
-  remove(target: VoxelPixelBit | Vec3): boolean {
+  remove(target: BitHandle | Vec3): boolean {
     const bit =
-      target instanceof VoxelPixelBit ? target : this.#byKey.get(VoxelPixelBit.keyOf(target));
-    if (!bit || this.#byId.get(bit.id) !== bit) return false;
+      "id" in target ? this.#byId.get(target.id) : this.#byKey.get(VoxelPixelBit.keyOf(target));
+    if (!bit) return false;
     bit.unlinkAll();
     this.#byKey.delete(bit.key);
     this.#byId.delete(bit.id);
@@ -186,8 +198,8 @@ export class Grid {
   }
 
   /** Move a bit to a free cell, keeping its id, and relink it there. */
-  move(bit: VoxelPixelBit, to: Vec3): void {
-    if (this.#byId.get(bit.id) !== bit) throw new Error(`bit ${bit.id} is not in this grid`);
+  move(handle: BitHandle, to: Vec3): void {
+    const bit = this.#own(handle);
     const toKey = VoxelPixelBit.keyOf(to);
     if (toKey === bit.key) return;
     if (this.#byKey.has(toKey)) throw new Error(`cell ${toKey} is occupied`);

@@ -6,6 +6,7 @@
  * its own rendering wherever it can prove nothing would reach the screen.
  */
 
+import type { BitHandle, BitRecord } from "./container.ts";
 import type { BitEventBody } from "./events.ts";
 import { assertJsonSerializable, type JsonObject, jsonClone } from "./json.ts";
 import {
@@ -90,7 +91,7 @@ export interface VPBOptions {
   onEvent?: (body: BitEventBody) => void;
 }
 
-export class VoxelPixelBit {
+export class VoxelPixelBit implements BitHandle {
   /** Immutable identity, minted by the container (SPEC.md §9.1, ADR 0005). */
   readonly id: string;
   position: [number, number, number];
@@ -299,6 +300,33 @@ export class VoxelPixelBit {
 
   linkCount(slot: Slot): number {
     return this.node(slot).links.length;
+  }
+
+  linkCountOf(slot: Slot): number {
+    return this.node(slot).links.length;
+  }
+
+  emissionOf(slot: Slot): Emission {
+    return this.node(slot).emission;
+  }
+
+  renderEnabledOf(slot: Slot): boolean {
+    return this.node(slot).renderEnabled;
+  }
+
+  /** The bit as a plain record (SPEC.md §10.9). */
+  record(): BitRecord {
+    return {
+      id: this.id,
+      position: [this.position[0], this.position[1], this.position[2]],
+      present: this.#present,
+      color: this.color,
+      passport: this.passport,
+      emissions: this.nodes.map((n) => ({ ...n.emission })),
+      links: this.nodes.map((n) => n.links.map((l) => `${l.bit.id}:${l.slot}`).sort()),
+      renderCycle: this.renderCycle,
+      renderEnabled: this.nodes.map((n) => n.renderEnabled),
+    };
   }
 
   /** Max links a node can hold: 1 face, 3 edge, 7 vertex. */

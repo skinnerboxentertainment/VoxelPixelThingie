@@ -7,8 +7,10 @@
  * scene back into a Grid: from the full ledger when it is complete, or
  * from passports plus the ledger tail when it has been compacted.
  */
+
+import type { Container, ContainerOptions } from "./container.ts";
 import { type BitEvent, type EventSink, replay } from "./events.ts";
-import { Grid, type GridOptions } from "./grid.ts";
+import { Grid } from "./grid.ts";
 import { assertJsonSerializable, type JsonObject } from "./json.ts";
 import { EDGE_SLOTS, NODE_COUNT, VERTEX_SLOTS } from "./slots.ts";
 import type { FileStore } from "./store.ts";
@@ -275,25 +277,35 @@ export async function readManifest(store: FileStore): Promise<Manifest | undefin
  * is replayed. A compacted scene is rebuilt from passports, then the ledger
  * tail past each passport's seq is applied.
  */
-export interface OpenSceneOptions extends GridOptions {
+export interface OpenSceneOptions<C extends Container = Grid> extends ContainerOptions {
   /**
    * A sink attached after the scene is rebuilt, so it sees only new events.
    * Use SceneSink.resume(store) to continue writing the same scene. The
    * grid's sequence continues from the manifest either way.
    */
   attach?: EventSink;
+  /** Which container to rebuild into. Default: the reference Grid. */
+  factory?: (opts?: ContainerOptions) => C;
 }
 
-export async function openScene(store: FileStore, opts: OpenSceneOptions = {}): Promise<Grid> {
-  const { attach, ...gridOnly } = opts;
-  const grid = await rebuild(store, gridOnly);
+export async function openScene<C extends Container = Grid>(
+  store: FileStore,
+  opts: OpenSceneOptions<C> = {},
+): Promise<C> {
+  const { attach, factory, ...gridOnly } = opts;
+  const make = factory ?? ((o?: ContainerOptions) => new Grid(o) as unknown as C);
+  const grid = await rebuild(store, gridOnly, make);
   const manifest = (await readManifest(store))!;
   grid.resumeSeq(manifest.seq);
   if (attach) grid.attachSink(attach);
   return grid;
 }
 
-async function rebuild(store: FileStore, opts: GridOptions): Promise<Grid> {
+async function rebuild<C extends Container>(
+  store: FileStore,
+  opts: ContainerOptions,
+  make: (opts?: ContainerOptions) => C,
+): Promise<C> {
   const manifest = await readManifest(store);
   if (!manifest) throw new Error("no manifest.json: not a scene");
   const ids = await store.list("bits");
@@ -304,16 +316,16 @@ async function rebuild(store: FileStore, opts: GridOptions): Promise<Grid> {
     ledgers.set(id, parseLedger(l));
     if (p) passports.set(id, JSON.parse(p) as PassportFile);
   });
-  const gridOpts: GridOptions = { ...opts, id: manifest.scene };
+  const gridOpts: ContainerOptions = { ...opts, id: manifest.scene };
 
   if (!manifest.compacted) {
     const all: BitEvent[] = [];
     for (const evs of ledgers.values()) all.push(...evs);
-    return replay(all, gridOpts);
+    return replay(all, { ...gridOpts, factory: make });
   }
 
   // Compacted: passports are the base, then the tail beyond each passport's seq.
-  const grid = new Grid(gridOpts);
+  const grid = make(gridOpts);
   const ordered = [...passports.values()].sort((a, b) => (a.id < b.id ? -1 : 1));
   grid.wrangle({ actor: "replay", cause: "open compacted scene" }, () => {
     for (const p of ordered) {

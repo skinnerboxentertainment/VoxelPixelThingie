@@ -6,7 +6,8 @@
  * discards. Nothing in the render path reads events.
  */
 
-import { Grid, type GridOptions } from "./grid.ts";
+import type { Container, ContainerOptions } from "./container.ts";
+import { Grid } from "./grid.ts";
 import type { JsonObject } from "./json.ts";
 import type { Offset, Slot } from "./slots.ts";
 import type { Emission, Vec3 } from "./vpb.ts";
@@ -62,10 +63,20 @@ export class RecordingSink implements EventSink {
  * the container's, so replayed events carry the original frame. Replayed
  * events are stamped actor "replay" and keep the original cause.
  */
-export function replay(events: Iterable<BitEvent>, opts: GridOptions = {}): Grid {
+export interface ReplayOptions<C extends Container = Grid> extends ContainerOptions {
+  /** Which container to rebuild into. Default: the reference Grid. */
+  factory?: (opts?: ContainerOptions) => C;
+}
+
+export function replay<C extends Container = Grid>(
+  events: Iterable<BitEvent>,
+  opts: ReplayOptions<C> = {},
+): C {
+  const { factory, ...rest } = opts;
+  const make = factory ?? ((o?: ContainerOptions) => new Grid(o) as unknown as C);
   const ordered = [...events].sort((a, b) => a.seq - b.seq);
-  const frame = opts.id ?? ordered[0]?.frame;
-  const grid = new Grid(frame ? { ...opts, id: frame } : opts);
+  const frame = rest.id ?? ordered[0]?.frame;
+  const grid = make(frame ? { ...rest, id: frame } : rest);
   for (const e of ordered) {
     grid.wrangle({ actor: "replay", ...(e.cause !== undefined ? { cause: e.cause } : {}) }, () =>
       apply(grid, e),
@@ -74,7 +85,7 @@ export function replay(events: Iterable<BitEvent>, opts: GridOptions = {}): Grid
   return grid;
 }
 
-function apply(grid: Grid, e: BitEvent): void {
+function apply(grid: Container, e: BitEvent): void {
   switch (e.type) {
     case "created":
       grid.add(e.position, { id: e.bit, color: e.color, emission: e.emission });
@@ -103,7 +114,7 @@ function apply(grid: Grid, e: BitEvent): void {
   }
 }
 
-function need(grid: Grid, id: string) {
+function need(grid: Container, id: string) {
   const b = grid.get(id);
   if (!b) throw new Error(`replay: no bit ${id} in grid`);
   return b;
