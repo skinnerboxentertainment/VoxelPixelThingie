@@ -50,7 +50,7 @@ test("removing a bit through the hook drops the count by one and re-exposes", as
   await page.waitForTimeout(100);
   const after = await counts(page);
   expect(after.bits).toBe(before.bits - 1);
-  expect(after.nodes).toBeGreaterThan(0);
+  expect(after.nodes).toBeGreaterThan(before.nodes);
 });
 
 test("size 16 loads 4069 bits", async ({ page }) => {
