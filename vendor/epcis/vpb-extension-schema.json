@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "VoxelPixelThingie EPCIS user extension",
+  "description": "Fields under the vpb: prefix that src/epcis.ts writes on EPCIS 2.0 events. Registered with an EPCIS repository that validates user extensions, for example OpenEPCIS: POST /userExtension/jsonSchema?namespace=<VPB_NS>&defaultPrefix=vpb",
+  "additionalProperties": true,
+  "properties": {
+    "type": { "type": "string" },
+    "seq": { "type": "integer" },
+    "actor": { "type": "string" },
+    "slot": { "type": "integer" },
+    "partner": { "type": "integer" },
+    "offset": { "type": "array", "items": { "type": "integer" } },
+    "from": { "type": "array", "items": { "type": "integer" } },
+    "to": { "type": "array", "items": { "type": "integer" } },
+    "color": { "type": "integer" },
+    "light": { "type": "number" },
+    "data": { "type": "string" },
+    "position": { "type": "array", "items": { "type": "integer" } },
+    "emission": { "type": "object", "additionalProperties": true },
+    "passport": { "type": "object", "additionalProperties": true },
+    "annotation": { "type": "object", "additionalProperties": true }
+  }
+}

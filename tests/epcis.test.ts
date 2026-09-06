@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { test } from "node:test";
-import { EpcisSink, epcisKind, toEpcisDocument } from "../src/epcis.ts";
+import { EpcisSink, epcisKind, toEpcisDocument, VPB_NS } from "../src/epcis.ts";
 import { RecordingSink } from "../src/events.ts";
 import { FlatGrid } from "../src/flat-grid.ts";
 import { Grid } from "../src/grid.ts";
@@ -93,16 +93,16 @@ test("fields: identifiers, readPoint, bizStep from cause, actor as owning party,
   const doc = toEpcisDocument(sink.events);
   const list = doc.epcisBody.eventList;
   const created = list.find((e) => e["vpb:type"] === "created")!;
-  assert.deepEqual(created.epcList, [`urn:uuid:${sink.events[0]!.bit}`]);
+  assert.deepEqual(created.epcList, [`${VPB_NS}bit/${sink.events[0]!.bit}`]);
   assert.equal(created.bizStep, "commissioning");
-  assert.deepEqual((created.readPoint as { id: string }).id, `urn:vpb:frame:${g.id}`);
+  assert.deepEqual((created.readPoint as { id: string }).id, `${VPB_NS}frame/${g.id}`);
   const ilmd = created.ilmd as Record<string, unknown>;
   assert.equal(ilmd["vpb:color"], 0xffffff, "the bit's own color, default white");
   assert.deepEqual(ilmd["vpb:emission"], { color: 0x1f6feb, light: 0.6 }, "the initial emission");
   const carved = list.find((e) => e["vpb:type"] === "presence")!;
   assert.equal(carved.disposition, "inactive");
   assert.match(String(carved.bizStep), /bizstep\/carve-the-tunnel$/);
-  assert.deepEqual(carved.sourceList, [{ type: "owning_party", source: "urn:vpb:actor:oscar" }]);
+  assert.deepEqual(carved.sourceList, [{ type: "owning_party", source: `${VPB_NS}actor/oscar` }]);
   // The fill lights slot 9 first; the carve sequence emits it again with data. Take the last.
   const emitted = list.filter((e) => e["vpb:type"] === "emitted" && e["vpb:slot"] === 9).at(-1)!;
   const report = (emitted.sensorElementList as { sensorReport: Record<string, unknown>[] }[])[0]!
@@ -124,6 +124,31 @@ test("fields: identifiers, readPoint, bizStep from cause, actor as owning party,
     list.every((e) => typeof e.eventID === "string" && e.eventID.startsWith("urn:vpb:event:")),
   );
   assert.ok(list.every((e) => e.eventTimeZoneOffset === "+00:00"));
+});
+
+test("identifiers other than the event id are web URIs, and the prefixes are options", () => {
+  const sink = new RecordingSink();
+  carveSequence(sink, false);
+  const doc = toEpcisDocument(sink.events);
+  for (const ev of doc.epcisBody.eventList) {
+    const ids = [
+      ...((ev.epcList as string[] | undefined) ?? []),
+      ...((ev.childEPCs as string[] | undefined) ?? []),
+      ...(ev.parentID ? [ev.parentID as string] : []),
+      (ev.readPoint as { id: string }).id,
+      ...((ev.sourceList as { source: string }[] | undefined) ?? []).map((s) => s.source),
+    ];
+    for (const id of ids) assert.ok(id.startsWith(VPB_NS), `web URI under the namespace: ${id}`);
+    assert.ok((ev.eventID as string).startsWith("urn:vpb:event:"));
+  }
+  const custom = toEpcisDocument(sink.events, {
+    bitPrefix: "urn:uuid:",
+    framePrefix: "urn:epc:id:sgln:0614141.00777.",
+    actorPrefix: "urn:epc:id:pgln:0614141.",
+  });
+  const first = custom.epcisBody.eventList[0]!;
+  assert.deepEqual(first.epcList, [`urn:uuid:${sink.events[0]!.bit}`]);
+  assert.ok((first.readPoint as { id: string }).id.startsWith("urn:epc:id:sgln:"));
 });
 
 test("EpcisSink accumulates and renders on demand", () => {
