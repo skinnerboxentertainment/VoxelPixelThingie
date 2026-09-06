@@ -1,0 +1,33 @@
+{
+  "format": "vpb-conformance/1",
+  "tiers": {
+    "1": {
+      "name": "replay, state digest, seal, signature",
+      "cases": [
+        "reference-4",
+        "reference-4-signed",
+        "reference-4-forged",
+        "reference-4-tampered"
+      ]
+    },
+    "2": {
+      "name": "container operations, events, links",
+      "cases": [
+        "carve",
+        "presence"
+      ]
+    },
+    "3": {
+      "name": "render self-tests for a camera, scene digest",
+      "cases": [
+        "default",
+        "straight-down",
+        "corner"
+      ]
+    }
+  },
+  "canonical": {
+    "state": "JSON.stringify({ scene, bits }) with bits sorted by id, each { id, position, present, color, passport, emissions, links }",
+    "hash": "SHA-256, lowercase hex, over the UTF-8 of the canonical text"
+  }
+}
