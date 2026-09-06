@@ -1,5 +1,6 @@
 export * from "./compact.ts";
 export * from "./container.ts";
+export * from "./epcis.ts";
 export * from "./events.ts";
 export * from "./flat-grid.ts";
 export * from "./grid.ts";
