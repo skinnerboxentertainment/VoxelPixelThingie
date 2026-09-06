@@ -46,6 +46,26 @@ export interface PassportFile {
 }
 
 export const bitDir = (id: string) => `bits/${id}`;
+
+/** Run `fn` over `items` with at most `limit` in flight. Stores with slow handles (OPFS) need this. */
+export async function mapLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+const CONCURRENCY = 64;
 export const passportPath = (id: string) => `${bitDir(id)}/passport.json`;
 export const ledgerPath = (id: string) => `${bitDir(id)}/events.jsonl`;
 
@@ -148,10 +168,23 @@ export class SceneSink implements EventSink {
     if (this.#queue.length === 0) return;
     const batch = this.#queue;
     this.#queue = [];
+    // Lines are grouped per bit so a store with expensive operations (OPFS)
+    // sees one append per bit per batch. Within a bit, order is preserved.
+    const lines = new Map<string, string[]>();
+    for (const e of batch) {
+      let arr = lines.get(e.bit);
+      if (!arr) {
+        arr = [];
+        lines.set(e.bit, arr);
+      }
+      arr.push(JSON.stringify(e));
+    }
+    // 1. Ledger first: the truth. Different bits are independent files.
+    await mapLimit([...lines], CONCURRENCY, ([id, ls]) =>
+      this.store.append(ledgerPath(id), `${ls.join("\n")}\n`),
+    );
     const touched = new Set<string>();
     for (const e of batch) {
-      // 1. Ledger first: the truth.
-      await this.store.append(ledgerPath(e.bit), `${JSON.stringify(e)}\n`);
       // 2. Passport: a cache of the ledger, rewritten atomically.
       const next = applyToPassport(this.#passports.get(e.bit), e);
       this.#passports.set(e.bit, next);
@@ -168,9 +201,9 @@ export class SceneSink implements EventSink {
       }
       this.#manifest.seq = Math.max(this.#manifest.seq, e.seq);
     }
-    for (const id of touched) {
-      await this.store.write(passportPath(id), `${JSON.stringify(this.#passports.get(id))}\n`);
-    }
+    await mapLimit([...touched], CONCURRENCY, (id) =>
+      this.store.write(passportPath(id), `${JSON.stringify(this.#passports.get(id))}\n`),
+    );
     // 3. Manifest, once per batch.
     const m = this.#manifest!;
     m.updated = this.#now();
@@ -215,11 +248,11 @@ export async function openScene(store: FileStore, opts: GridOptions = {}): Promi
   const ids = await store.list("bits");
   const ledgers = new Map<string, BitEvent[]>();
   const passports = new Map<string, PassportFile>();
-  for (const id of ids) {
-    ledgers.set(id, parseLedger(await store.read(ledgerPath(id))));
-    const p = await store.read(passportPath(id));
+  await mapLimit(ids, CONCURRENCY, async (id) => {
+    const [l, p] = await Promise.all([store.read(ledgerPath(id)), store.read(passportPath(id))]);
+    ledgers.set(id, parseLedger(l));
     if (p) passports.set(id, JSON.parse(p) as PassportFile);
-  }
+  });
   const gridOpts: GridOptions = { ...opts, id: manifest.scene };
 
   if (!manifest.compacted) {

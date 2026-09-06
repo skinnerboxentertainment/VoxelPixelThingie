@@ -13,17 +13,34 @@
       #stage { position: fixed; inset: 0; display: block; }
       .hint { color: #8b949e; margin-left: auto; }
       #status { color: #8b949e; }
+      #panel { position: fixed; left: 12px; bottom: 12px; width: 360px; background: rgba(13,17,23,.92); border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; z-index: 2; }
+      #panel-title { font-family: ui-monospace, monospace; margin-bottom: 6px; white-space: pre; }
+      #passport { width: 100%; box-sizing: border-box; background: #0b0f19; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; font: 12px/1.4 ui-monospace, monospace; padding: 6px; }
+      .row { display: flex; gap: 8px; margin-top: 6px; }
+      #panel-error { color: #f85149; min-height: 1.2em; margin-top: 4px; }
     </style>
   </head>
   <body>
     <div id="bar">
       <label>size <select id="size"><option value="8" selected>8³</option><option value="16">16³</option><option value="32">32³</option></select></label>
       <button type="button" id="reset">reset scene</button>
+      <button type="button" id="save" title="write this scene to the browser's private file system">save</button>
+      <button type="button" id="load" title="read the saved scene back">load</button>
       <span id="status"></span>
-      <span class="hint">drag to orbit · wheel to zoom · click a bit to remove it</span>
+      <span class="hint">drag to orbit · wheel to zoom · click a bit to open its passport</span>
     </div>
     <canvas id="stage"></canvas>
     <div id="hud"></div>
+    <div id="panel" hidden>
+      <div id="panel-title"></div>
+      <textarea id="passport" rows="8" spellcheck="false"></textarea>
+      <div class="row">
+        <button type="button" id="apply">set passport</button>
+        <button type="button" id="remove">remove bit</button>
+        <button type="button" id="close">close</button>
+      </div>
+      <div id="panel-error"></div>
+    </div>
     <script type="module" src="./main.ts"></script>
   </body>
 </html>
