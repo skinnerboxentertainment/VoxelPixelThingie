@@ -2,6 +2,7 @@ export * from "./compact.ts";
 export * from "./events.ts";
 export * from "./grid.ts";
 export * from "./json.ts";
+export * from "./pack.ts";
 export * from "./render-list.ts";
 export * from "./scene.ts";
 export * from "./slots.ts";
