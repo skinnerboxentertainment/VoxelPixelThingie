@@ -16,8 +16,9 @@ import { z } from "zod";
 import { InProcessPool, WORKLOADS } from "../src/actor.ts";
 import type { BitHandle, Container } from "../src/container.ts";
 import type { BitEvent, RecordingSink } from "../src/events.ts";
-import { jobsOf } from "../src/jobs.ts";
+import { type JobAudit, jobsOf } from "../src/jobs.ts";
 import type { JsonObject } from "../src/json.ts";
+import { isAgent, type Policy, policyOf } from "../src/policy.ts";
 import { ledgerPath, parseLedger, readManifest } from "../src/scene.ts";
 import { MemoryStorage, type Storage } from "../src/storage.ts";
 import type { FileStore } from "../src/store.ts";
@@ -123,9 +124,13 @@ export function createSceneServer(opts: SceneServerOptions): McpServer {
     async ({ id, slot, color, light, data, cause }) => {
       const b = bitOr(id);
       if (!b) return fail(`no bit ${id}`);
-      wrangle(cause ?? `emit on slot ${slot}`, () =>
-        b.emit(slot, { ...(color !== undefined ? { color } : {}), ...(light !== undefined ? { light } : {}), ...(data !== undefined ? { data } : {}) }),
-      );
+      try {
+        wrangle(cause ?? `emit on slot ${slot}`, () =>
+          b.emit(slot, { ...(color !== undefined ? { color } : {}), ...(light !== undefined ? { light } : {}), ...(data !== undefined ? { data } : {}) }),
+        );
+      } catch (err) {
+        return fail((err as Error).message);
+      }
       return text({ id, slot, emission: b.emissionOf(slot) });
     },
   );
@@ -151,8 +156,32 @@ export function createSceneServer(opts: SceneServerOptions): McpServer {
     async ({ id, cause }) => {
       const b = bitOr(id);
       if (!b) return fail(`no bit ${id}`);
-      wrangle(cause ?? "remove bit", () => grid.setPresent(b, false));
+      try {
+        wrangle(cause ?? "remove bit", () => grid.setPresent(b, false));
+      } catch (err) {
+        return fail((err as Error).message);
+      }
       return text({ id, present: b.present });
+    },
+  );
+
+  server.registerTool(
+    "get_policy",
+    {
+      title: "Get a bit's policy",
+      description: "The policy under the passport's reserved `policy` key (SPEC.md §9.8): who may change the bit, what work it accepts, whether agents may act. Null when the bit carries none.",
+      inputSchema: { id: z.string() },
+    },
+    async ({ id }) => {
+      const b = bitOr(id);
+      if (!b) return fail(`no bit ${id}`);
+      let policy: Policy | null;
+      try {
+        policy = policyOf(b.passport) ?? null;
+      } catch (err) {
+        return fail((err as Error).message);
+      }
+      return text({ id, policy, agent: actorName(), agentIsAgent: isAgent(actorName()) });
     },
   );
 
@@ -166,7 +195,12 @@ export function createSceneServer(opts: SceneServerOptions): McpServer {
     async ({ id, kind, params }) => {
       if (!bitOr(id)) return fail(`no bit ${id}`);
       const jobId = uuidv7();
-      const audit = await pool().actor(id).run({ id: jobId, kind, ...(params ? { params: params as JsonObject } : {}) });
+      let audit: JobAudit;
+      try {
+        audit = await pool().actor(id).run({ id: jobId, kind, ...(params ? { params: params as JsonObject } : {}) });
+      } catch (err) {
+        return fail((err as Error).message);
+      }
       const job = jobsOf(recorder.events.filter((e) => e.bit === id)).find((j) => j.id === jobId);
       return text({ id, job: jobId, audit, result: job?.result, reward: job?.reward ?? null });
     },

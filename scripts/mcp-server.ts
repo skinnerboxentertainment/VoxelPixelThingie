@@ -29,7 +29,7 @@ let sink: SceneSink | undefined;
 if (folder) {
   store = new NodeFsStore(folder);
   sink = await SceneSink.resume(store);
-  grid = await openScene(store, { attach: new TeeSink([recorder, sink]) });
+  grid = await openScene(store, { attach: new TeeSink([sink, recorder]) /* the ledger's sink first: a refusal there never reaches the recorder */ });
 } else {
   grid = referenceScene(8, recorder);
 }

@@ -195,8 +195,15 @@ export function containerSuite(name: string, factory: ContainerFactory): void {
       g.wrangle({ actor: "oscar", cause: "test" }, () => a.emit(4, { light: 0.5 }));
       assert.equal(sink.events.at(-1)!.actor, "oscar");
       assert.equal(sink.events.at(-1)!.cause, "test");
+      const beforePresence = sink.events.length;
       g.setPresent(a, false);
-      assert.equal(types().at(-1), "presence");
+      // Reported before applied: the presence event comes first, any unlinks after.
+      assert.equal(types()[beforePresence], "presence");
+      assert.ok(
+        types()
+          .slice(beforePresence + 1)
+          .every((t) => t === "unlinked"),
+      );
       g.setPresent(a, true);
       g.move(a, [0, 5, 0]);
       assert.ok(sink.events.some((e) => e.type === "moved" && e.bit === a.id));

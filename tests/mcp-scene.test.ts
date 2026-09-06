@@ -16,7 +16,10 @@ async function connected() {
   const recorder = new RecordingSink();
   const grid = FlatGrid.fill(3, 3, 3, {
     emission: { color: 0x1f6feb, light: 0.6 },
-    sink: new TeeSink([recorder, sink]),
+    sink: new TeeSink([
+      sink,
+      recorder,
+    ]) /* the ledger's sink first: a refusal there never reaches the recorder */,
   });
   for (const b of grid.bits()) {
     b.emitAll(EDGE_SLOTS, { color: 0x58a6ff, light: 1 });
@@ -58,6 +61,7 @@ test("an agent lists the tools, reads a bit and its history, changes it, and the
       "get_audit",
       "get_bit",
       "get_history",
+      "get_policy",
       "list_bits",
       "remove_bit",
       "request_job",
@@ -187,6 +191,81 @@ test("resources: the manifest, every SPEC section, every ADR, and the oracle lis
     };
     assert.equal(JSON.parse(manifest.text).scene, t.grid.id);
     await assert.rejects(t.client.readResource({ uri: "spec://99.9" }), /no SPEC section/);
+  } finally {
+    await t.close();
+  }
+});
+
+test("policy over MCP: a bit that refuses agents turns the agent away with the rule, stays unchanged, and records the refusal; work outside the policy fails its audit", async () => {
+  const t = await connected();
+  try {
+    const id = [...t.grid.bits()][5]!.id;
+    const none = (await t.call("get_policy", { id })).structuredContent as {
+      policy: unknown;
+      agentIsAgent: boolean;
+    };
+    assert.equal(none.policy, null);
+    assert.equal(none.agentIsAgent, true, "mcp:test-agent is an agent");
+    // The agent may still set the passport (no controllers yet), and locks itself out.
+    await t.call("set_passport", { id, passport: { policy: { version: 1, agents: false } } });
+    const before = (await t.call("get_bit", { id })).structuredContent as { emissions: unknown[] };
+    const refused = await t.call("emit", { id, slot: 0, color: 0xff0000, cause: "paint" });
+    assert.equal(refused.isError, true);
+    assert.match(
+      refused.content[0]!.text!,
+      /policy on bit .* refuses emitted by mcp:test-agent: agents: false/,
+    );
+    const after = (await t.call("get_bit", { id })).structuredContent as { emissions: unknown[] };
+    assert.deepEqual(after.emissions, before.emissions, "the bit is unchanged");
+    const history = (await t.call("get_history", { id, limit: 1 })).structuredContent as {
+      events: {
+        type: string;
+        key?: string;
+        actor?: string;
+        value?: { actor?: string; rule?: string };
+      }[];
+    };
+    const last = history.events[0]!;
+    assert.equal(last.key, "policy:refused");
+    assert.equal(last.actor, "policy");
+    assert.equal(last.value?.actor, "mcp:test-agent");
+    assert.equal(last.value?.rule, "agents: false");
+    assert.ok(
+      !t.recorder.events.some(
+        (e) =>
+          e.type === "emitted" &&
+          e.bit === id &&
+          e.seq === (last as unknown as { seq: number }).seq,
+      ),
+      "the recorder never saw the refused event",
+    );
+    // The agent can no longer replace the policy either: agents: false covers passport events.
+    const locked = await t.call("set_passport", { id, passport: {} });
+    assert.equal(locked.isError, true);
+    assert.equal(
+      ((await t.call("get_policy", { id })).structuredContent as { policy: { agents: boolean } })
+        .policy.agents,
+      false,
+    );
+
+    // Work: another bit accepts links only.
+    const id2 = [...t.grid.bits()][6]!.id;
+    await t.call("set_passport", {
+      id: id2,
+      passport: { policy: { version: 1, work: ["links"] } },
+    });
+    const denied = (await t.call("request_job", { id: id2, kind: "epcis" })).structuredContent as {
+      audit: { passed: boolean; check: string; detail?: string };
+      result: unknown;
+    };
+    assert.equal(denied.audit.passed, false);
+    assert.equal(denied.audit.check, "policy allows the work");
+    assert.match(denied.audit.detail!, /work does not include epcis/);
+    assert.equal(denied.result, undefined);
+    const ok = (await t.call("request_job", { id: id2, kind: "links" })).structuredContent as {
+      audit: { passed: boolean };
+    };
+    assert.equal(ok.audit.passed, true);
   } finally {
     await t.close();
   }

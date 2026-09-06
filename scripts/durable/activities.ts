@@ -5,12 +5,13 @@
  * is absent, so the engine may retry a step after a crash and the ledger
  * still shows one request, one result, one audit.
  */
-import { Context } from "@temporalio/activity";
+import { ApplicationFailure, Context } from "@temporalio/activity";
 import { type Job, performJob, requestRecord, rewardRecord, type Workload, WORKLOADS } from "../../src/actor.ts";
 import type { Container } from "../../src/container.ts";
 import type { BitEvent, RecordingSink } from "../../src/events.ts";
 import { JOB_KEYS, type JobAudit, type JobResult, jobsOf } from "../../src/jobs.ts";
 import type { JsonValue } from "../../src/json.ts";
+import { PolicyError } from "../../src/policy.ts";
 import { ledgerPath, parseLedger, type SceneSink } from "../../src/scene.ts";
 import type { Storage } from "../../src/storage.ts";
 import type { FileStore } from "../../src/store.ts";
@@ -59,7 +60,16 @@ export function makeActivities(host: ActorHost) {
   const jobOf = async (bitId: string, jobId: string) => jobsOf(await history(bitId)).find((j) => j.id === jobId);
   const write = async <T>(bitId: string, key: string, value: T, cause: string) => {
     const bit = bitOr(bitId);
-    host.grid.wrangle({ actor: name, cause }, () => bit.annotate(key, value as unknown as JsonValue));
+    try {
+      host.grid.wrangle({ actor: name, cause }, () =>
+        bit.annotate(key, value as unknown as JsonValue),
+      );
+    } catch (err) {
+      // The bit's policy said no (SPEC.md §9.8): retrying would not change its mind.
+      if (err instanceof PolicyError)
+        throw ApplicationFailure.nonRetryable(err.message, "PolicyError", err.refusal);
+      throw err;
+    }
     await host.sink?.flush();
   };
 

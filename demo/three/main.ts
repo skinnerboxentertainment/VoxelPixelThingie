@@ -551,7 +551,7 @@ async function setAutosave(on: boolean): Promise<{ ok: boolean; reason?: string;
   const overlay = OverlayStore.fresh(PackedStore.fromText(text), ws);
   const sink = await SceneSink.resume(overlay);
   autosaveSink = sink;
-  grid.attachSink(new TeeSink(ledBridge ? [recorder, sink, ledBridge] : [recorder, sink]));
+  grid.attachSink(new TeeSink(ledBridge ? [sink, recorder, ledBridge] : [sink, recorder]));
   const ms = performance.now() - t0;
   status.textContent = `autosave on, ${ms.toFixed(0)} ms to seed`;
   return { ok: true, ms };
@@ -589,7 +589,7 @@ async function loadAutosave(): Promise<{
     if (autosaveBox.checked) {
       // Continue the same scene rather than seeding a new one.
       autosaveSink = await SceneSink.resume(store);
-      grid.attachSink(new TeeSink([recorder, autosaveSink]));
+      grid.attachSink(new TeeSink([autosaveSink, recorder]));
     }
     const ms = performance.now() - t0;
     status.textContent = `loaded autosave, ${loaded.size} bits, ${ms.toFixed(0)} ms`;

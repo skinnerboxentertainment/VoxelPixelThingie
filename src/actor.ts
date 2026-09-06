@@ -18,6 +18,7 @@ import type { BitEvent } from "./events.ts";
 import { JOB_KEYS, type JobAudit, type JobRequest, type JobResult } from "./jobs.ts";
 import type { JsonValue } from "./json.ts";
 import { defaultLedMap, ledFrame, ledMapOf } from "./led-map.ts";
+import { PolicyError } from "./policy.ts";
 import { mapLimit } from "./scene.ts";
 import { partnerSlot } from "./slots.ts";
 import type { Storage } from "./storage.ts";
@@ -185,7 +186,21 @@ export class InProcessPool implements ActorPool {
       this.#grid.wrangle({ actor: this.name, cause }, () =>
         bit.annotate(key, value as unknown as JsonValue),
       );
-    record(JOB_KEYS.request, requestRecord(job), `job ${job.kind}`);
+    try {
+      record(JOB_KEYS.request, requestRecord(job), `job ${job.kind}`);
+    } catch (err) {
+      // The bit's policy refused the request (SPEC.md §9.8): a failed audit
+      // naming the rule, no result. A refusal of the audit itself propagates.
+      if (!(err instanceof PolicyError)) throw err;
+      const audit: JobAudit = {
+        id: job.id,
+        check: "policy allows the work",
+        passed: false,
+        detail: err.refusal.rule,
+      };
+      record(JOB_KEYS.audit, audit, `audit ${job.kind}`);
+      return audit;
+    }
     const { result, audit } = await performJob(bit, job, {
       grid: this.#grid,
       storage: this.#storage,

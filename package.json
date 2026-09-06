@@ -27,6 +27,7 @@
     "scene:export": "node --experimental-strip-types scripts/export-scene.ts",
     "scene:pack": "node --experimental-strip-types scripts/pack-scene.ts",
     "scene:reader": "node --experimental-strip-types scripts/reader-scene.ts",
+    "scene:policy": "node --experimental-strip-types scripts/export-policy.ts",
     "scene:pin": "node --experimental-strip-types scripts/pin-pinata.ts",
     "scene:sign": "node --experimental-strip-types scripts/sign-scene.ts",
     "key:gen": "node --experimental-strip-types scripts/keygen.ts",
