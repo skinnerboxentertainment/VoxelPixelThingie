@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+coverage
+test-results
+playwright-report
+docs
+tests
+bench
+vendor
+*.md
