@@ -64,6 +64,11 @@ root points Claude Code at it, and the ledger names the agent as
 `npm run durable:worker -- --scene <folder>` (host a scene's actors on the
 durable engine, a local `temporal server start-dev`; jobs submitted through
 `DurableActorPool` survive a killed worker and complete exactly once),
+`npm run docker:worker -- --scene <folder>` (the same worker as a Docker
+container over a mounted scene folder, with the engine as a container
+beside it; `npm run docker:worker -- --down` stops them;
+`VPB_DOCKER=1 npm run test:docker` runs the kill-and-restart oracle
+through Docker),
 `node --experimental-strip-types scripts/wled-sim.ts` (the physical bit's
 digital twin: a WLED emulator in the terminal, UDP 4048 and a JSON API on
 8790, so the driver runs with no hardware: pass `--http-port 8790` to `led:drive`; invoked directly because
