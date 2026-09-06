@@ -74,6 +74,14 @@ async function check(name: string, store: NodeFsStore | FetchStore | PackedStore
   console.log(
     `${name.padEnd(12)} bits ${grid.size}  ${okSeal}  signature ${v.signature}  digest ${digest.slice(0, 16)}…  ${ms} ms`,
   );
+  for (const w of v.witnesses ?? [])
+    console.log(
+      `${"".padEnd(12)} witness ${w.witness}: ${w.ok ? `attested ${new Date(w.time!).toISOString()}${w.anchored ? ", anchored" : ", unanchored"}` : `FAILED (${w.reason})`}`,
+    );
+  if (v.rotation)
+    console.log(
+      `${"".padEnd(12)} signed by a retired key, verified through ${v.rotation.via.join(" → ")}, retired ${new Date(v.rotation.retired).toISOString()}`,
+    );
   if (!v.ok) failed++;
   digests.push({ name, digest });
 }

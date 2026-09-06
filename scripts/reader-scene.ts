@@ -25,6 +25,7 @@ import { openScene, readManifest, SceneSink } from "../src/scene.ts";
 import { MemoryStore } from "../src/store.ts";
 import { NodeFsStore } from "../src/store-node.ts";
 import { sceneDigest, sealScene } from "../src/verify.ts";
+import { NotaryWitness } from "../src/witness.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 export const TEMPLATE = join(root, "dist-reader", "reader", "index.html");
@@ -91,7 +92,8 @@ export async function builtinSigned(): Promise<{ pack: ScenePack; didDoc: DidDoc
   const manifest = (await readManifest(mem))!;
   const { privateKey } = await generateKeyPair();
   const did = frameDid("reader.example.invalid", "", manifest.scene);
-  await sealScene(mem, { did, privateKey });
+  const notary = await generateKeyPair();
+  await sealScene(mem, { did, privateKey }, { witnesses: [new NotaryWitness(notary.privateKey)] });
   const didDoc = await buildDidDocument(did, publicOf(privateKey));
   return { pack: await packScene(mem), didDoc };
 }

@@ -11,7 +11,14 @@
  *   did:web:example.org
  *     → https://example.org/.well-known/did.json
  */
-import { keyId, type PublicKeyJwk, publicOf } from "./keys.ts";
+import {
+  keyId,
+  type PrivateKeyJwk,
+  type PublicKeyJwk,
+  publicOf,
+  signText,
+  verifyText,
+} from "./keys.ts";
 
 export interface DidDocument {
   "@context": string[];
@@ -24,6 +31,99 @@ export interface DidDocument {
   }[];
   assertionMethod: string[];
   service?: { id: string; type: string; serviceEndpoint: string }[];
+  /**
+   * Key rotations, oldest first (PLAN-4 Phase 18, ADR 0013). Not a DID Core
+   * property; a plain-JSON extension so the chain travels with the document.
+   */
+  rotations?: RotationStatement[];
+}
+
+/**
+ * A key handing over to its successor, signed by the key being retired.
+ * A seal made with `from` verifies through the chain against a document
+ * that asserts only `to`; a seal witnessed after `retired` does not.
+ */
+export interface RotationStatement {
+  format: "vpb-rotation/1";
+  from: string;
+  fromKey: PublicKeyJwk;
+  to: string;
+  toKey: PublicKeyJwk;
+  /** ms since the epoch: the moment `from` stopped being the container's key. */
+  retired: number;
+  /** base64url Ed25519 signature by `from` over rotationText. */
+  signature: string;
+}
+
+const bare = (k: PublicKeyJwk): PublicKeyJwk => ({ kty: k.kty, crv: k.crv, x: k.x });
+
+export const rotationText = (r: Omit<RotationStatement, "signature">): string =>
+  JSON.stringify({
+    format: r.format,
+    from: r.from,
+    fromKey: bare(r.fromKey),
+    to: r.to,
+    toKey: bare(r.toKey),
+    retired: r.retired,
+  });
+
+/** Retire `oldKey` in favour of `newKey` at `retired` (now by default). */
+export async function rotateKey(
+  oldKey: PrivateKeyJwk,
+  newKey: PublicKeyJwk,
+  retired = Date.now(),
+): Promise<RotationStatement> {
+  const fromKey = bare(publicOf(oldKey));
+  const toKey = bare(newKey);
+  const body: Omit<RotationStatement, "signature"> = {
+    format: "vpb-rotation/1",
+    from: await keyId(fromKey),
+    fromKey,
+    to: await keyId(toKey),
+    toKey,
+    retired,
+  };
+  return { ...body, signature: await signText(oldKey, rotationText(body)) };
+}
+
+export interface RotationPath {
+  ok: boolean;
+  /** Key ids from the seal's key to the current key, inclusive. */
+  via: string[];
+  /** The public key the seal was made with, when the chain holds. */
+  key?: PublicKeyJwk;
+  /** When the seal's key was retired, when the chain holds. */
+  retired?: number;
+  reason?: string;
+}
+
+/**
+ * Walk `doc.rotations` from `kid` to a key the document asserts with. Each
+ * link must be signed by its own `from`, whose id must match its key.
+ */
+export async function rotationPath(doc: DidDocument, kid: string): Promise<RotationPath> {
+  const current = new Set(await Promise.all(assertionKeys(doc).map((k) => keyId(k))));
+  if (current.has(kid)) return { ok: true, via: [kid] };
+  const via = [kid];
+  let at = kid;
+  let first: RotationStatement | undefined;
+  for (let hops = 0; hops < 64; hops++) {
+    const step = (doc.rotations ?? []).find((r) => r.from === at);
+    if (!step) return { ok: false, via, reason: `no rotation from ${at}` };
+    if ((await keyId(step.fromKey)) !== step.from || (await keyId(step.toKey)) !== step.to)
+      return {
+        ok: false,
+        via,
+        reason: `rotation from ${at} names keys that do not match their ids`,
+      };
+    if (!(await verifyText(step.fromKey, rotationText(step), step.signature)))
+      return { ok: false, via, reason: `rotation from ${at} is not signed by ${at}` };
+    first ??= step;
+    via.push(step.to);
+    at = step.to;
+    if (current.has(at)) return { ok: true, via, key: first.fromKey, retired: first.retired };
+  }
+  return { ok: false, via, reason: "rotation chain too long" };
 }
 
 /** The DID for a container served at host and path. Path segments become colons. */

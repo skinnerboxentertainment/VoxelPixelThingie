@@ -210,7 +210,24 @@ async function verify(): Promise<void> {
     case "forged":
       sig.innerHTML = `<span class="bad">forged</span>: the signature by <span class="mono">${esc(r.did ?? "")}</span> does not match this manifest (checked ${how})`;
       break;
+    case "retired":
+      sig.innerHTML = `<span class="bad">retired</span>: signed by a key of <span class="mono">${esc(r.did ?? "")}</span> after that key was retired`;
+      break;
   }
+  const wit = $("s-witness");
+  if (!r.witnesses?.length) {
+    wit.innerHTML = '<span class="muted">no witness</span>';
+  } else {
+    wit.innerHTML = r.witnesses
+      .map((w) =>
+        w.ok
+          ? `<span class="good">attested</span> ${new Date(w.time!).toISOString()} by <span class="mono">${esc(w.witness)}</span>${w.anchored ? " (anchored)" : " (unanchored: not in a trust list)"}`
+          : `<span class="bad">failed</span> <span class="mono">${esc(w.witness)}</span>: ${esc(w.reason ?? "")}`,
+      )
+      .join("<br />");
+  }
+  if (r.rotation)
+    sig.innerHTML += `<br />signed by a retired key, verified through <span class="mono">${esc(r.rotation.via.join(" → "))}</span>, retired ${new Date(r.rotation.retired).toISOString()}`;
   status(
     r.ok && r.signature !== "forged"
       ? `verified: ${r.checked} bits, seal ok, signature ${r.signature}`

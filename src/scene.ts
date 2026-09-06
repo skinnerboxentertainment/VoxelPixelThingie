@@ -16,6 +16,7 @@ import { assertJsonSerializable, type JsonObject } from "./json.ts";
 import { EDGE_SLOTS, NODE_COUNT, VERTEX_SLOTS } from "./slots.ts";
 import type { FileStore } from "./store.ts";
 import type { Emission, Vec3 } from "./vpb.ts";
+import type { WitnessProof } from "./witness.ts";
 
 export const SCENE_FORMAT = "vpb-scene/1";
 export const PASSPORT_FORMAT = "vpb-passport/1";
@@ -46,6 +47,8 @@ export interface SceneSignature {
   value: string;
   /** When it was signed, ms since the epoch. Informational. */
   signed: number;
+  /** Third parties attesting that `value` existed at a time (PLAN-4 Phase 18, ADR 0013). */
+  witness?: WitnessProof[];
 }
 
 /** passport.json: the bit as it is now, at a sequence number (SPEC.md §10.4). */

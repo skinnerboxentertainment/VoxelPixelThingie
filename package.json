@@ -30,6 +30,7 @@
     "scene:pin": "node --experimental-strip-types scripts/pin-pinata.ts",
     "scene:sign": "node --experimental-strip-types scripts/sign-scene.ts",
     "key:gen": "node --experimental-strip-types scripts/keygen.ts",
+    "key:rotate": "node --experimental-strip-types scripts/rotate-key.ts",
     "job:drive": "node --experimental-strip-types scripts/job-drive.ts",
     "mcp": "node --experimental-strip-types scripts/mcp-server.ts",
     "durable:worker": "node --experimental-strip-types scripts/durable-worker.ts",

@@ -4,6 +4,7 @@
  *
  *   npm run scene:sign -- <folder> --key <private.jwk> --host <host> --path <path>
  *        [--manifest-url <url>] [--passport-url <url>] [--epcis-url <url>]
+ *        [--witness notary:<jwk> | rfc3161:<url>]...
  *
  * The DID is did:web:<host>:<path>:frame:<container id>; the document is
  * written to <folder>/did.json and, unless --no-doc, printed with the URL
@@ -17,6 +18,7 @@ import { type PrivateKeyJwk, publicOf } from "../src/keys.ts";
 import { readManifest } from "../src/scene.ts";
 import { NodeFsStore } from "../src/store-node.ts";
 import { sealScene, verifyScene } from "../src/verify.ts";
+import { NotaryWitness, Rfc3161Witness, type Witness } from "../src/witness.ts";
 
 const args = process.argv.slice(2);
 const flag = (n: string) => {
@@ -44,7 +46,21 @@ if (!manifest) {
   process.exit(1);
 }
 const did = frameDid(host, path, manifest.scene);
-const sealed = await sealScene(store, { did, privateKey });
+const witnesses: Witness[] = [];
+for (let i = 0; i < args.length; i++) {
+  if (args[i] !== "--witness") continue;
+  const spec = args[i + 1] ?? "";
+  if (spec.startsWith("notary:")) {
+    const notary = JSON.parse(await fs.readFile(spec.slice(7), "utf8")) as PrivateKeyJwk;
+    witnesses.push(new NotaryWitness(notary));
+  } else if (spec.startsWith("rfc3161:")) {
+    witnesses.push(new Rfc3161Witness(spec.slice(8)));
+  } else {
+    console.error(`--witness takes notary:<jwk> or rfc3161:<url>, not ${spec}`);
+    process.exit(2);
+  }
+}
+const sealed = await sealScene(store, { did, privateKey }, { witnesses });
 const doc = await buildDidDocument(did, publicOf(privateKey), {
   services: {
     ...(flag("manifest-url") ? { manifest: flag("manifest-url")! } : {}),
@@ -55,5 +71,9 @@ const doc = await buildDidDocument(did, publicOf(privateKey), {
 await fs.writeFile(join(folder, "did.json"), `${JSON.stringify(doc, null, 2)}\n`, "utf8");
 const report = await verifyScene(store, { resolve: async () => doc });
 console.log(`sealed ${sealed} bits, signature ${report.signature}, ${report.ok ? "ok" : "FAILED"}`);
+for (const w of report.witnesses ?? [])
+  console.log(
+    `witness ${w.witness}: ${w.ok ? `attested ${new Date(w.time!).toISOString()}` : `FAILED (${w.reason})`}`,
+  );
 console.log(`did ${did}`);
 console.log(`serve ${join(folder, "did.json")} at ${didWebUrl(did)}`);
