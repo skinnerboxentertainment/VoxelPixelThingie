@@ -56,8 +56,11 @@ across any store is what "the same bit" means.
   patch event.
 - Files per bit means many small files. A 32³ scene is 32,768 folders.
   That is acceptable on local disks and git; it is slow on some object
-  stores and on IPFS without a directory sharding strategy. A packed
-  single-file variant is a later ADR if it is ever needed.
+  stores and on IPFS without a directory sharding strategy.
+  Amended 2026-09-06: the packed single-file variant now exists
+  (`vpb-scene-pack/1`, SPEC.md §10.8) because the first IPFS pinning free
+  tier counted files, 500 allowed against 1,025 in a scene. It is a
+  lossless container for the same layout, not a second format.
 - Nothing in `evaluate` changes. Persistence is entirely sinks.
 
 ## Alternatives considered

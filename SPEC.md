@@ -540,6 +540,7 @@ The model names no store. The reference sinks are:
 | `OpfsSink` | the browser's origin private file system | same layout, no server, per-origin |
 | `MemorySink` | an in-memory map of paths to strings | tests |
 | `FetchStore` | a URL prefix, read-only | a mirror on a static host, a raw git URL, or an IPFS gateway; lists bits from `manifest.ids` |
+| `PackedStore` | one JSON file holding every file's text, read-only | for stores that count or charge per file, or serve single objects; a sealed manifest verifies against a pack byte for byte |
 
 A scene folder mirrored to a distributed store is still a scene. Git and
 GitHub give append-only history and a fingerprint per file for free. IPFS
@@ -547,6 +548,12 @@ names each file by its content hash, so the hash of a passport is proof of
 that passport. Hypercore is itself an append-only log and could carry
 `events.jsonl` line for line. Syncthing mirrors a folder between devices.
 None of these need the model to change; they need the folder.
+
+**Packed variant.** `vpb-scene-pack/1` is the folder as one JSON object:
+the manifest plus each bit's passport and ledger as raw text. `packScene`
+and `unpackScene` convert without loss, so the seal holds on both forms.
+Use it where files are counted (an IPFS pinning free tier allows 500 and a
+scene has 1,025) or where a store serves single objects.
 
 ### 10.9 The spime test
 
