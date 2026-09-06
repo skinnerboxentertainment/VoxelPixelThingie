@@ -89,6 +89,11 @@ A published scene lives at
 - [PLAN-3.md](PLAN-3.md): the third program, draft: identity with recourse,
   work as audited events, local compute, the scene as an MCP server, one
   durable backend.
+- [PLAN-4.md](PLAN-4.md): the fourth program, draft, from the punchlist: a
+  reader in the box, witnessed seals and key rotation, policy the bit
+  enforces, searchable memory, senses, reproducible attested releases,
+  glTF, accessibility, a conformance kit, and value only after four
+  answers.
 - [docs/spime-research.md](docs/spime-research.md): the spime framing
   checked against its source and against the standards that made it real,
   with the v0.4 amendments it implies.

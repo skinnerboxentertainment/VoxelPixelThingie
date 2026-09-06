@@ -1,6 +1,6 @@
 # Punchlist: what the bit asks for from a thousand years out
 
-Date: 2026-09-06. Status: proposed, unscheduled. Each item names the
+Date: 2026-09-06. Status: planned in PLAN-4.md (Phases 17 to 26), unscheduled. Each item names the
 check that would show it done. Rule of the list: standards over vendors,
 files over services, no account needed to test.
 
