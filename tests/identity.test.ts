@@ -36,7 +36,11 @@ test("keys: sign and verify round-trip, the wrong key and the wrong text fail, b
   assert.equal(await verifyText(b.publicKey, "hello", sig), false);
   assert.equal(await verifyText(a.publicKey, "hellO", sig), false);
   assert.equal(await verifyText(a.publicKey, "hello", "not-a-signature"), false);
-  assert.equal(await verifyText(a.publicKey, "hello", `${sig.slice(0, -2)}AA`), false);
+  // Flip a character in the middle of the signature: the last byte is the high byte of S and is
+  // already zero for one signature in sixteen, so changing it would not always change the value.
+  const flipped = `${sig.slice(0, 20)}${sig[20] === "A" ? "B" : "A"}${sig.slice(21)}`;
+  assert.notEqual(flipped, sig);
+  assert.equal(await verifyText(a.publicKey, "hello", flipped), false);
   const bytes = new Uint8Array([0, 1, 2, 250, 251, 252, 253, 254, 255]);
   assert.deepEqual([...fromBase64Url(toBase64Url(bytes))], [...bytes]);
   assert.ok(!toBase64Url(bytes).includes("="), "no padding");

@@ -138,7 +138,7 @@ test("a hundred changes reach the simulator; click→terminal-write is measured 
       `click→terminal-write over ${latencies.length} frames of ${bridge.samples.length} sends: p50 ${p50.toFixed(1)} ms, p95 ${p95.toFixed(1)} ms, max ${max.toFixed(1)} ms`,
     );
     expect(p95).toBeLessThan(1000);
-    expect(p50).toBeGreaterThanOrEqual(0);
+    expect(p50).toBeGreaterThanOrEqual(-1); // millisecond clock alignment across processes
 
     // Carve the mirrored bit: the simulator's next frame is dark. Read it back through the
     // JSON API's stats count and the bridge's last frame bytes are asserted in three-led.spec.
