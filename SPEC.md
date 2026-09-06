@@ -1,7 +1,7 @@
 # VoxelPixelThingie — Core Model Specification
 
-Status: Draft v0.5
-Date: 2026-09-05
+Status: Draft v0.6
+Date: 2026-09-06
 Author: Oscar
 
 ## 1. Purpose
@@ -330,6 +330,14 @@ parent can answer frustum and coverage questions for many bits at once. This
 is anticipated and not designed here. The principle stands either way: the
 decision belongs to the bit, and a parent only short-circuits it.
 
+### 8.6 Physical expression (informative)
+
+A physical bit, a cube with LEDs on its faces, edges, and corners, shows
+emissions, not the culled render list: it is seen from every side, so the
+self-test of §8.2 does not apply to it. An absent bit is dark. The map from
+slots to LEDs is data the bit carries in its passport (§9.5); the wire
+protocol and the driver are outside the model (ADR 0009).
+
 ## 9. Identity and history
 
 Adopted from ADR 0005: the VPB is a spime. Its data trail is its primary
@@ -413,6 +421,10 @@ renderer.
   to neighbors) and from `annotated` events (notes in the history that do
   not change state).
 - Nothing in the render path reads the passport.
+- One key is reserved by convention: `ledMap`, a `vpb-led-map/1` object
+  (strip length, one LED range per slot) that a physical bit carries so a
+  driver can light it without other configuration (§8.6, ADR 0009). A
+  passport without it is driven with the default map.
 
 ### 9.6 Wrangler context
 
@@ -598,3 +610,4 @@ same camera. That equality, across a round trip through any store, is what
 | 2026-09-06 | Persistence is two files per bit, passport and ledger, in a folder per scene, written ledger-first, store-agnostic; compaction keeps a tail and may drop derivable link events (§10). Closes former open question 5. ADR 0006. |
 | 2026-09-06 | Packed scene variant `vpb-scene-pack/1` for stores that count files (§10.8, ADR 0006 amended). First IPFS pin recorded in the Phase 6 journal. |
 | 2026-09-06 | A container contract (BitHandle, Container) and a conformance suite. FlatGrid over typed arrays with derived link masks is the default container; Grid is the reference. Containers that derive links may omit link events (§7). ADR 0007. |
+| 2026-09-06 | A physical bit shows emissions, not the culled list, and carries its LED map in its passport under `ledMap`; DDP to WLED is the wire (§8.6, §9.5, ADR 0009). |

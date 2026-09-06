@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VPB passport</title>
+    <style>
+      :root { color-scheme: dark; }
+      body { margin: 0; background: #0b0f19; color: #c9d1d9; font: 14px/1.5 system-ui, sans-serif; }
+      main { max-width: 860px; margin: 4vh auto; padding: 0 20px; }
+      h1 { font-weight: 600; font-size: 20px; margin: 0 0 4px; }
+      h2 { font-weight: 600; font-size: 15px; margin: 22px 0 8px; color: #8b949e; }
+      .muted { color: #8b949e; }
+      code, pre, .mono { font-family: ui-monospace, monospace; }
+      pre { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 10px 12px; overflow-x: auto; margin: 0; }
+      table { border-collapse: collapse; width: 100%; }
+      th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid #21262d; vertical-align: top; }
+      th { color: #8b949e; font-weight: 500; }
+      .swatch { display: inline-block; width: 14px; height: 14px; border-radius: 3px; border: 1px solid #30363d; vertical-align: -2px; margin-right: 6px; }
+      .head { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+      .head > div:first-child { flex: 1 1 420px; }
+      #qr { background: #fff; padding: 8px; border-radius: 8px; width: 200px; height: 200px; display: block; }
+      #qr-url { word-break: break-all; font-size: 12px; max-width: 216px; }
+      input { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 4px 8px; font: inherit; width: 100%; box-sizing: border-box; }
+      button { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
+      form { display: grid; grid-template-columns: 90px 1fr; gap: 8px 12px; align-items: center; max-width: 620px; }
+      #error { color: #f85149; }
+      .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; border: 1px solid #30363d; font-size: 12px; }
+      .present { color: #3fb950; } .absent { color: #f85149; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>VoxelPixelBit passport</h1>
+      <p class="muted">A bit's identity, state, and history, read from a published scene. The QR code is this page's own address, for the physical bit's label.</p>
+      <form id="open">
+        <label for="scene">scene</label><input id="scene" name="scene" placeholder="URL of a scene folder, a .pack.json, or builtin" />
+        <label for="id">bit id</label><input id="id" name="id" placeholder="UUID, or first" />
+        <span></span><span><button type="submit">open</button></span>
+      </form>
+      <p id="error"></p>
+      <section id="bit" hidden>
+        <div class="head">
+          <div>
+            <h2>Identity</h2>
+            <table>
+              <tr><th>bit</th><td class="mono" id="f-id"></td></tr>
+              <tr><th>container</th><td class="mono" id="f-frame"></td></tr>
+              <tr><th>position</th><td class="mono" id="f-position"></td></tr>
+              <tr><th>state</th><td id="f-state"></td></tr>
+              <tr><th>color</th><td id="f-color"></td></tr>
+              <tr><th>last event</th><td class="mono" id="f-seq"></td></tr>
+              <tr><th>EPCIS id</th><td class="mono" id="f-epc"></td></tr>
+            </table>
+          </div>
+          <div>
+            <canvas id="qr" width="200" height="200"></canvas>
+            <div id="qr-url" class="mono muted"></div>
+          </div>
+        </div>
+        <h2>Passport</h2>
+        <pre id="f-passport"></pre>
+        <h2>Emissions, 26 nodes</h2>
+        <table id="f-emissions"><thead><tr><th>slot</th><th>node</th><th>color</th><th>light</th><th>data</th></tr></thead><tbody></tbody></table>
+        <h2>History</h2>
+        <table id="f-events"><thead><tr><th>seq</th><th>type</th><th>time</th><th>detail</th><th>actor</th><th>cause</th></tr></thead><tbody></tbody></table>
+      </section>
+      <p class="muted">Source: <a href="https://github.com/skinnerboxentertainment/VoxelPixelThingie">github.com/skinnerboxentertainment/VoxelPixelThingie</a> · <a href="../">demos</a></p>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
