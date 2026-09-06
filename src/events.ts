@@ -7,6 +7,7 @@
  */
 
 import { Grid, type GridOptions } from "./grid.ts";
+import type { JsonObject } from "./json.ts";
 import type { Offset, Slot } from "./slots.ts";
 import type { Emission, Vec3 } from "./vpb.ts";
 
@@ -18,6 +19,7 @@ export type BitEventBody =
   | { type: "unlinked"; neighbor: string; slot: Slot }
   | { type: "moved"; from: Vec3; to: Vec3 }
   | { type: "annotated"; key: string; value: unknown }
+  | { type: "passport"; passport: JsonObject }
   | { type: "destroyed" };
 
 export type BitEvent = BitEventBody & {
@@ -65,6 +67,9 @@ export function replay(events: Iterable<BitEvent>, opts: GridOptions = {}): Grid
         break;
       case "annotated":
         need(grid, e.bit).annotate(e.key, e.value);
+        break;
+      case "passport":
+        need(grid, e.bit).setPassport(e.passport);
         break;
       case "destroyed":
         grid.remove(need(grid, e.bit));

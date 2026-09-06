@@ -15,6 +15,7 @@ function snapshot(g: Grid) {
       key: b.key,
       present: b.present,
       color: b.color,
+      passport: b.passport,
       emissions: b.nodes.map((n) => n.emission),
       links: b.nodes.map((n) => n.links.map((l) => `${l.bit.id}:${l.slot}`).sort()),
     }))
@@ -43,6 +44,10 @@ test("oracle: carve, move, emit, destroy on an 8x8x8, then replay to the same st
   b.emit(9, { color: 0x00ff00, data: { tag: "seam" } });
   b.emit(25, {});
   b.annotate("note", "corner");
+  // Passports of three shapes, one nested four levels deep (ticket #37 oracle).
+  b.setPassport({ name: "corner bit", tags: ["seam", "demo"], weight: 1.5 });
+  live.at(0, 7, 0)!.setPassport({ a: { b: { c: { d: [1, 2, { e: null }] } } } });
+  live.at(7, 7, 0)!.setPassport({});
   // Destroy one.
   live.remove(live.at(7, 0, 0)!);
   live.evaluate();

@@ -7,6 +7,7 @@
  */
 
 import type { BitEventBody } from "./events.ts";
+import { assertJsonSerializable, type JsonObject, jsonClone } from "./json.ts";
 import {
   ALL_SLOTS,
   FACE_SLOTS,
@@ -100,6 +101,7 @@ export class VoxelPixelBit {
   renderCycle = true;
 
   #present: boolean;
+  #passport: JsonObject = {};
   #onEvent: (body: BitEventBody) => void;
   #staticDirty = true; // state or links changed since last static pass
   #cameraDirty = true; // camera moved since last camera pass
@@ -167,6 +169,26 @@ export class VoxelPixelBit {
   /** Attach a free-form note to the bit's history. No effect on state. */
   annotate(key: string, value: unknown): void {
     this.#onEvent({ type: "annotated", key, value });
+  }
+
+  /** The bit's own record (SPEC.md §9.5). A detached copy; mutate and setPassport to change it. */
+  get passport(): JsonObject {
+    return jsonClone(this.#passport);
+  }
+
+  /**
+   * Replace the passport whole. Validates JSON-serializability first, then
+   * reports the event, then applies, so a sink that refuses the event
+   * leaves the bit unchanged. Never touches the render path.
+   */
+  setPassport(passport: JsonObject): void {
+    if (passport === null || typeof passport !== "object" || Array.isArray(passport)) {
+      throw new TypeError("a passport is a plain JSON object");
+    }
+    assertJsonSerializable(passport, "passport");
+    const copy = jsonClone(passport);
+    this.#onEvent({ type: "passport", passport: copy });
+    this.#passport = copy;
   }
 
   node(slot: Slot): VPBNode {
