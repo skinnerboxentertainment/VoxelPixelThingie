@@ -292,7 +292,7 @@ doing visible work.
 
 | Metric | Target |
 |--------|--------|
-| p95 frame time, 32³ carved, orbiting, bloom on | < 16.7 ms |
+| p95 frame time, 32³ carved, orbiting, bloom on | at the display's vsync interval with no dropped frames (16.8 ms measured at 60 Hz; see the Phase 3 journal for why "under 16.7" was the wrong number) |
 | Time from Pages URL to first frame | < 3 s |
 | CI wall time | < 2 min |
 | Coverage on `src/` | ≥ 85% lines |

@@ -1,0 +1,11 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "out": "dist/api",
+  "name": "VoxelPixelThingie",
+  "readme": "SPEC.md",
+  "includeVersion": false,
+  "excludePrivate": true,
+  "githubPages": true,
+  "navigation": { "includeGroups": true }
+}

@@ -299,10 +299,20 @@ resetButton.addEventListener("click", () => loadSize(size));
   frameStats,
   frameCount: () => frameCount,
   removeCenterFacingBit: () => {
-    // Deterministic removal for tests: the first bit in the face layer.
-    const bit = faces.bits[0];
-    if (bit) removeBit(bit);
-    return bit?.id;
+    // Deterministic removal: a visible bit in the interior of a face, so the
+    // pit it leaves exposes the enclosed bit beneath it and its four sides.
+    const interior = (c: number) => c > 0 && c < size - 1;
+    let best: VoxelPixelBit | undefined;
+    let bestScore = -1;
+    for (const b of faces.bits) {
+      const score = b.position.filter(interior).length;
+      if (score > bestScore) {
+        bestScore = score;
+        best = b;
+      }
+    }
+    if (best) removeBit(best);
+    return best?.id;
   },
   loadSize,
   backend: () => backend,
