@@ -77,9 +77,11 @@ step(
 );
 
 // 6. Carve: one bit leaves, the pit exposes the bit beneath and four sides.
+// Let orbit damping settle first so the baseline is taken from a still camera.
+await page.waitForTimeout(900);
 const before = await hook(() => window.__vpb.counts());
 await hook(() => window.__vpb.removeCenterFacingBit());
-await page.waitForTimeout(150);
+await page.waitForTimeout(400);
 c = await hook(() => window.__vpb.counts());
 step(
   "three.js carve one bit, neighbors expose",
