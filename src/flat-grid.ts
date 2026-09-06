@@ -320,10 +320,10 @@ export class FlatGrid implements Container {
     const i = this.#index(handle);
     const was = (this.#flags[i]! & PRESENT) !== 0;
     if (was === present) return;
+    this.#stamp(this.#ids[i]!, { type: "presence", present });
     if (present) this.#flags[i]! |= PRESENT;
     else this.#flags[i]! &= ~PRESENT;
     this.#touchNeighbors(i);
-    this.#stamp(this.#ids[i]!, { type: "presence", present });
   }
 
   move(handle: BitHandle, to: Vec3): void {
@@ -337,6 +337,7 @@ export class FlatGrid implements Container {
       this.#pos[i * 3 + 1]!,
       this.#pos[i * 3 + 2]!,
     ];
+    this.#stamp(this.#ids[i]!, { type: "moved", from, to: [to[0], to[1], to[2]] });
     this.#touchNeighbors(i);
     this.#cells.delete(fromKey);
     this.#pos[i * 3] = to[0];
@@ -345,7 +346,6 @@ export class FlatGrid implements Container {
     this.#cells.set(toKey, i);
     this.#touchNeighbors(i);
     this.#flags[i]! |= CAMERA_DIRTY;
-    this.#stamp(this.#ids[i]!, { type: "moved", from, to: [to[0], to[1], to[2]] });
   }
 
   // ---------------------------------------------------------------- per-bit accessors (used by FlatBit)
@@ -417,10 +417,11 @@ export class FlatGrid implements Container {
   /** @internal */
   _emit(i: number, s: Slot, e: Emission, event = true): void {
     if (s < 0 || s >= NODE_COUNT) throw new RangeError(`slot out of range: ${s}`);
+    // Report, then apply: a sink that refuses the event leaves the bit unchanged (§9.8).
+    if (event) this.#stamp(this.#ids[i]!, { type: "emitted", slot: s, emission: { ...e } });
     this.#setEmission(i, s, e);
     this.#flags[i]! |= STATIC_DIRTY;
     this.#awakeDirty = true;
-    if (event) this.#stamp(this.#ids[i]!, { type: "emitted", slot: s, emission: { ...e } });
   }
   /** @internal */
   _annotate(i: number, key: string, value: unknown): void {

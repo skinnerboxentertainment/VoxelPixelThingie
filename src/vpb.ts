@@ -150,9 +150,9 @@ export class VoxelPixelBit implements BitHandle {
       throw new Error("unlink before moving; use Grid.move");
     }
     const from: Vec3 = [this.position[0], this.position[1], this.position[2]];
+    this.#onEvent({ type: "moved", from, to: [to[0], to[1], to[2]] });
     this.position = [to[0], to[1], to[2]];
     this.onCameraMoved();
-    this.#onEvent({ type: "moved", from, to: [to[0], to[1], to[2]] });
   }
 
   get present(): boolean {
@@ -161,10 +161,10 @@ export class VoxelPixelBit implements BitHandle {
 
   setPresent(present: boolean): void {
     if (present === this.#present) return;
+    this.#onEvent({ type: "presence", present });
     this.#present = present;
     if (!present) this.unlinkAll();
     this.onStateChanged();
-    this.#onEvent({ type: "presence", present });
   }
 
   /** Attach a free-form note to the bit's history. No effect on state. */
@@ -204,16 +204,19 @@ export class VoxelPixelBit implements BitHandle {
 
   /** Set what a node emits. Replaces the whole emission. */
   emit(slot: Slot, emission: Emission): void {
-    this.node(slot).emission = { ...emission };
-    this.onStateChanged();
+    const node = this.node(slot);
+    // Report, then apply: a sink that refuses the event leaves the bit unchanged (§9.8).
     this.#onEvent({ type: "emitted", slot, emission: { ...emission } });
+    node.emission = { ...emission };
+    this.onStateChanged();
   }
 
   /** Set the same emission on a set of nodes (collective addressing, §5.1). */
   emitAll(slots: Iterable<Slot>, emission: Emission): void {
     for (const s of slots) {
-      this.node(s).emission = { ...emission };
+      const node = this.node(s);
       this.#onEvent({ type: "emitted", slot: s, emission: { ...emission } });
+      node.emission = { ...emission };
     }
     this.onStateChanged();
   }

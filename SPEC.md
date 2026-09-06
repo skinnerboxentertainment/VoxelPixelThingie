@@ -421,10 +421,12 @@ renderer.
   to neighbors) and from `annotated` events (notes in the history that do
   not change state).
 - Nothing in the render path reads the passport.
-- One key is reserved by convention: `ledMap`, a `vpb-led-map/1` object
+- Two keys are reserved by convention. `ledMap`, a `vpb-led-map/1` object
   (strip length, one LED range per slot) that a physical bit carries so a
-  driver can light it without other configuration (§8.6, ADR 0009). A
-  passport without it is driven with the default map.
+  driver can light it without other configuration (§8.6, ADR 0009); a
+  passport without it is driven with the default map. `policy`, the
+  bit's own rules for who may change it (§9.8, ADR 0014); a passport
+  without it is open.
 
 ### 9.6 Wrangler context
 
@@ -464,6 +466,44 @@ The order is request, result, audit, reward. An actor that runs work
 writes them under a wrangler context whose `actor` names it (§9.6), so
 the ledger records who did the work as it records who carved a bit.
 Nothing in the render path reads job records.
+
+### 9.8 Policy
+
+A bit may carry, under the reserved passport key `policy`, a small
+document saying who may change it, what work it accepts, and whether a
+software agent may act on it:
+
+```json
+{ "version": 1,
+  "controllers": ["oscar"],
+  "actors": { "allow": ["oscar", "mcp:*"], "deny": ["mcp:evil"] },
+  "agents": false,
+  "work": ["links"] }
+```
+
+- `controllers`: the actors who may replace the passport, and so the
+  policy itself. Absent: anyone.
+- `actors.allow` and `actors.deny`: actor patterns, exact or with a
+  trailing `*` for a prefix. Deny wins. Absent: anyone.
+- `agents`: whether actors named `mcp:*`, `actor:*`, or `agent:*` may
+  change the bit. Absent: yes.
+- `work`: the job kinds a `job:request` may name. Absent: any.
+
+The policy is judged by the reference file sink, the door every persisted
+change passes through, before the container applies the event; the
+container itself is policy-blind. A refused event never lands and never
+applies. In its place the sink writes an `annotated` event under the
+reserved key `policy:refused`, with actor `policy`, carrying the refused
+actor, the event type, its key if any, and the rule, at the sequence
+number the refused event would have taken. Only the sink writes that
+key. Replayed events (`actor: "replay"`), the policy's own records, and
+link bookkeeping are exempt, so a tightened policy replays its own
+history. An actor that runs work turns a refused request into a failed
+audit naming the rule, with no result. A malformed policy is refused
+before it lands.
+
+The vocabulary maps one to one onto ODRL 2.2 terms; `scene:policy`
+renders it so. The enforced form is this one.
 
 ## 10. Persistence
 
@@ -667,3 +707,4 @@ same camera. That equality, across a round trip through any store, is what
 | 2026-09-06 | Work is three annotations under reserved keys, request then result then audit, with an optional reward after a passed audit; large results are stored by content id (§9.7, ADR 0010). |
 | 2026-09-06 | A scene carries its own reader: one file with the pack, the SPEC, and the DID document, verifying with the repository's own code (ADR 0012). |
 | 2026-09-06 | Seals may be witnessed (a notary key or an RFC 3161 authority attesting the signature's digest at a time) and keys rotate by signed chain in the DID document; a signature witnessed after its key's retirement is `retired` (§10.3, ADR 0013). |
+| 2026-09-06 | A bit may carry a `policy` in its passport (controllers, actor allow and deny, agents, work); the file sink judges every event against it before the container applies, and a refusal lands as `policy:refused` at the refused event's seq (§9.5, §9.8, ADR 0014). |

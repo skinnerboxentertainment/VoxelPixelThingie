@@ -62,6 +62,8 @@ a container key by a signed chain the old seals still verify through),
 `npm run scene:reader -- <folder|pack.json|builtin> <out.html>` (one HTML
 file carrying the reader, the packed scene, the SPEC, and the DID document;
 opens from disk with the network off and verifies the seal there),
+`npm run scene:policy -- <folder> <bit id>` (a bit's policy, the rules in
+its passport for who may change it, rendered as ODRL 2.2),
 `npm run mcp -- [--scene <folder>]` (serve the scene over the Model Context
 Protocol on stdio: tools to read and change bits and ask them for work,
 resources for SPEC sections, ADRs, and the oracle list; `.mcp.json` at the

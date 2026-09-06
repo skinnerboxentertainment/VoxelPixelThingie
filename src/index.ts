@@ -13,6 +13,7 @@ export * from "./json.ts";
 export * from "./keys.ts";
 export * from "./led-map.ts";
 export * from "./pack.ts";
+export * from "./policy.ts";
 export * from "./render-list.ts";
 export * from "./rfc3161.ts";
 export * from "./scene.ts";

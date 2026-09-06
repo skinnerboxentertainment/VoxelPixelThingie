@@ -13,6 +13,14 @@ import { type BitEvent, type EventSink, replay } from "./events.ts";
 import { FlatGrid } from "./flat-grid.ts";
 import { validateJobAnnotation } from "./jobs.ts";
 import { assertJsonSerializable, type JsonObject } from "./json.ts";
+import {
+  judge,
+  type Policy,
+  PolicyError,
+  policyOf,
+  refusalEvent,
+  validatePolicyAnnotation,
+} from "./policy.ts";
 import { EDGE_SLOTS, NODE_COUNT, VERTEX_SLOTS } from "./slots.ts";
 import type { FileStore } from "./store.ts";
 import type { Emission, Vec3 } from "./vpb.ts";
@@ -151,6 +159,8 @@ export interface SceneSinkOptions {
 export class SceneSink implements EventSink {
   readonly store: FileStore;
   #passports = new Map<string, PassportFile>();
+  /** Each bit's current policy, kept in step at record time so a batch judges itself correctly. */
+  #policies = new Map<string, Policy | undefined>();
   #manifest: Manifest | undefined;
   #queue: BitEvent[] = [];
   #draining: Promise<void> = Promise.resolve();
@@ -181,7 +191,10 @@ export class SceneSink implements EventSink {
       for (const e of parseLedger(l)) {
         if (!record || e.seq > record.seq) record = applyToPassport(record, e);
       }
-      if (record) sink.#passports.set(id, record);
+      if (record) {
+        sink.#passports.set(id, record);
+        sink.#policies.set(id, policyOf(record.passport));
+      }
     });
     return sink;
   }
@@ -191,15 +204,36 @@ export class SceneSink implements EventSink {
     return this.#manifest?.scene;
   }
 
+  /** The policy a bit carries right now, as this sink knows it. */
+  policyOf(bitId: string): Policy | undefined {
+    return this.#policies.get(bitId);
+  }
+
   record(event: BitEvent): void {
     // Job records are annotations under reserved keys; a malformed one is refused here (SPEC.md §9.7).
-    if (event.type === "annotated") validateJobAnnotation(event.key, event.value);
+    if (event.type === "annotated") {
+      validateJobAnnotation(event.key, event.value);
+      validatePolicyAnnotation(event.key, event.value, event.actor);
+    }
+    let nextPolicy: Policy | undefined;
     if (event.type === "passport") {
       const bytes = new TextEncoder().encode(JSON.stringify(event.passport)).length;
       if (bytes > this.#limit) {
         throw new Error(`passport for ${event.bit} is ${bytes} bytes; limit is ${this.#limit}`);
       }
+      nextPolicy = policyOf(event.passport); // malformed policies are refused before anything lands
     }
+    // The bit's policy judges the event before the container applies it (SPEC.md §9.8).
+    const refusal = judge(this.#policies.get(event.bit), event);
+    if (refusal) {
+      this.#enqueue(refusalEvent(event, refusal));
+      throw new PolicyError(event.bit, refusal);
+    }
+    if (event.type === "passport") this.#policies.set(event.bit, nextPolicy);
+    this.#enqueue(event);
+  }
+
+  #enqueue(event: BitEvent): void {
     this.#queue.push(event);
     this.#draining = this.#draining
       .then(() => this.#drain())

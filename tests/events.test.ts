@@ -103,10 +103,13 @@ test("every mutator emits exactly its event", () => {
   assert.equal(after().type, "emitted");
   a.annotate("k", 42);
   assert.deepEqual(after(), { ...after(), type: "annotated", key: "k", value: 42 });
+  const beforePresence = sink.events.length;
   g.setPresent(a, false);
   const types = sink.events.map((e) => e.type);
   assert.ok(types.includes("unlinked"));
-  assert.equal(after().type, "presence");
+  // Presence is reported before the unlinks it causes, so a sink that refuses it sees nothing else (§9.8).
+  assert.equal(sink.events[beforePresence]!.type, "presence");
+  assert.ok(types.slice(beforePresence + 1).every((t) => t === "unlinked"));
   g.setPresent(a, true);
   assert.equal(types.length < sink.events.length, true);
   assert.ok(
