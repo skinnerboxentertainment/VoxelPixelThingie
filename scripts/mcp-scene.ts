@@ -18,6 +18,7 @@ import type { BitHandle, Container } from "../src/container.ts";
 import type { BitEvent, RecordingSink } from "../src/events.ts";
 import { type JobAudit, jobsOf } from "../src/jobs.ts";
 import type { JsonObject } from "../src/json.ts";
+import { loadOrBuildIndex, MemoryIndex, type MemoryQuery } from "../src/memory.ts";
 import { isAgent, type Policy, policyOf } from "../src/policy.ts";
 import { ledgerPath, parseLedger, readManifest } from "../src/scene.ts";
 import { MemoryStorage, type Storage } from "../src/storage.ts";
@@ -162,6 +163,54 @@ export function createSceneServer(opts: SceneServerOptions): McpServer {
         return fail((err as Error).message);
       }
       return text({ id, present: b.present });
+    },
+  );
+
+  // The scene's memory: built from the store's ledgers once, extended with this session's events.
+  let memory: MemoryIndex | undefined;
+  let memorySeq = 0;
+  const memoryIndex = async (): Promise<MemoryIndex> => {
+    if (!memory) {
+      memory = opts.store
+        ? (await loadOrBuildIndex(opts.store, { write: false })).index
+        : new MemoryIndex(grid.id);
+      memorySeq = memory.seq;
+    }
+    for (const e of recorder.events) if (e.seq > memorySeq) memory.add(e);
+    memorySeq = memory.seq;
+    return memory;
+  };
+
+  server.registerTool(
+    "search",
+    {
+      title: "Search the scene's memory",
+      description:
+        "Ask the history a question in one call: which events touched a slot, who did what and when, which cause or passport text mentions a word. Filters compose; text matches every word.",
+      inputSchema: {
+        bit: z.string().optional(),
+        type: z
+          .enum(["created", "presence", "emitted", "linked", "unlinked", "moved", "annotated", "passport", "destroyed"])
+          .optional(),
+        slot: z.number().int().min(0).max(25).optional(),
+        actor: z.string().optional(),
+        key: z.string().optional(),
+        text: z.string().optional(),
+        from: z.number().optional(),
+        to: z.number().optional(),
+        limit: z.number().int().positive().max(10000).optional(),
+      },
+    },
+    async (q) => {
+      const index = await memoryIndex();
+      const r = index.search(q as MemoryQuery);
+      return text({
+        scene: grid.id,
+        indexed: index.events,
+        total: r.total,
+        ms: Math.round(r.ms * 100) / 100,
+        hits: r.hits,
+      });
     },
   );
 

@@ -18,6 +18,7 @@ import type { BitEvent } from "./events.ts";
 import { JOB_KEYS, type JobAudit, type JobRequest, type JobResult } from "./jobs.ts";
 import type { JsonValue } from "./json.ts";
 import { defaultLedMap, ledFrame, ledMapOf } from "./led-map.ts";
+import { MemoryIndex, type MemoryQuery, tokenize, tokensOf } from "./memory.ts";
 import { PolicyError } from "./policy.ts";
 import { mapLimit } from "./scene.ts";
 import { partnerSlot } from "./slots.ts";
@@ -120,6 +121,64 @@ export const linksWorkload: Workload = (bit, _job, ctx) => {
 };
 
 /** A workload whose check always fails, for tests of the failed path. */
+/**
+ * A bit answers a query about its own history (PLAN-4.md Phase 20). The
+ * params are a MemoryQuery; the audit recomputes the answer by scanning
+ * the history without the index and compares.
+ */
+export const searchWorkload: Workload = (bit, job, ctx) => {
+  const q = (job.params ?? {}) as MemoryQuery;
+  for (const [k, v] of Object.entries(q)) {
+    const numeric = k === "slot" || k === "from" || k === "to" || k === "limit";
+    if (numeric ? typeof v !== "number" : typeof v !== "string")
+      return {
+        value: null,
+        check: "query is well formed",
+        passed: false,
+        detail: `${k} must be a ${numeric ? "number" : "string"}`,
+      };
+  }
+  // The bit's own history, minus this job's own records: a query must not find its own request.
+  const mine = ctx
+    .history()
+    .filter(
+      (e) =>
+        e.bit === bit.id &&
+        !(
+          e.type === "annotated" &&
+          e.key.startsWith("job:") &&
+          (e.value as { id?: unknown } | null)?.id === job.id
+        ),
+    );
+  const index = new MemoryIndex(ctx.grid.id);
+  for (const e of mine) index.add(e);
+  const { total, hits } = index.search({ ...q, bit: bit.id });
+  // The check: a plain scan of the history agrees with the index on which events match.
+  const toks = tokenize(q.text ?? "");
+  const scan = mine
+    .filter((e) => {
+      if (q.type !== undefined && e.type !== q.type) return false;
+      if (q.slot !== undefined && !("slot" in e && e.slot === q.slot)) return false;
+      if (q.actor !== undefined && e.actor !== q.actor) return false;
+      if (q.key !== undefined && !(e.type === "annotated" && e.key === q.key)) return false;
+      if (q.from !== undefined && e.time < q.from) return false;
+      if (q.to !== undefined && e.time > q.to) return false;
+      const have = new Set(tokensOf(e));
+      return toks.every((t) => have.has(t));
+    })
+    .sort((a, b) => a.seq - b.seq);
+  const agree =
+    scan.length === total && hits.every((h, i) => scan[i] !== undefined && scan[i]!.seq === h.seq);
+  return {
+    value: { total, hits } as unknown as JsonValue,
+    check: "a plain scan of the history agrees with the index",
+    passed: agree,
+    detail: agree
+      ? `${total} hit(s) of ${mine.length} events`
+      : `index ${total}, scan ${scan.length}`,
+  };
+};
+
 export const failingWorkload: Workload = () => ({
   value: null,
   check: "always fails",
@@ -131,6 +190,7 @@ export const WORKLOADS: Record<string, Workload> = {
   "led-frame": ledFrameWorkload,
   epcis: epcisWorkload,
   links: linksWorkload,
+  search: searchWorkload,
 };
 
 // ---------------------------------------------------------------- reference pool

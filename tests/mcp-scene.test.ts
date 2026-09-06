@@ -65,6 +65,7 @@ test("an agent lists the tools, reads a bit and its history, changes it, and the
       "list_bits",
       "remove_bit",
       "request_job",
+      "search",
       "set_passport",
     ]);
     const list = await t.call("list_bits", { limit: 5 });
@@ -266,6 +267,38 @@ test("policy over MCP: a bit that refuses agents turns the agent away with the r
       audit: { passed: boolean };
     };
     assert.equal(ok.audit.passed, true);
+  } finally {
+    await t.close();
+  }
+});
+
+test("search over MCP: the agent's own change is found by slot and by the words of its cause, with the agent and the time", async () => {
+  const t = await connected();
+  try {
+    const id = [...t.grid.bits()][7]!.id;
+    await t.call("emit", { id, slot: 2, color: 0x00ff00, cause: "green for go" });
+    const bySlot = (await t.call("search", { slot: 2, type: "emitted", actor: "mcp:test-agent" }))
+      .structuredContent as {
+      total: number;
+      hits: { bit: string; actor: string; cause: string; time: number }[];
+      ms: number;
+    };
+    assert.equal(bySlot.total, 1, JSON.stringify(bySlot.hits));
+    assert.equal(bySlot.hits[0]!.bit, id);
+    assert.equal(bySlot.hits[0]!.cause, "green for go");
+    assert.ok(bySlot.hits[0]!.time > 0);
+    const byText = (await t.call("search", { text: "GO green" })).structuredContent as {
+      total: number;
+    };
+    assert.equal(byText.total, 1);
+    const purple = (await t.call("search", { text: "purple" })).structuredContent as {
+      total: number;
+    };
+    assert.equal(purple.total, 0);
+    const jobbed = (await t.call("request_job", { id, kind: "search", params: { text: "green" } }))
+      .structuredContent as { audit: { passed: boolean }; result: { value: { total: number } } };
+    assert.equal(jobbed.audit.passed, true);
+    assert.equal(jobbed.result.value.total, 1);
   } finally {
     await t.close();
   }
