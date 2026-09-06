@@ -66,6 +66,9 @@ opens from disk with the network off and verifies the seal there),
 `npm run scene:search -- <folder> [--slot n] [--actor a] [--text words] ...`
 (ask the scene's memory: an index over the ledgers, built beside the
 manifest and rebuilt when the scene moves on),
+`npm run scene:gltf -- <folder|pack> <out.glb>` and `npm run scene:gltf:import -- <in.glb> <folder>`
+(the scene as glTF 2.0 for Blender and the web, each bit's identity in
+extras and the whole pack inside so a round trip keeps the history),
 `npm run scene:policy -- <folder> <bit id>` (a bit's policy, the rules in
 its passport for who may change it, rendered as ODRL 2.2),
 `npm run mcp -- [--scene <folder>]` (serve the scene over the Model Context

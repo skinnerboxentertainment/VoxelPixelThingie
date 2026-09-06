@@ -7,6 +7,7 @@ export * from "./did.ts";
 export * from "./epcis.ts";
 export * from "./events.ts";
 export * from "./flat-grid.ts";
+export * from "./gltf.ts";
 export * from "./grid.ts";
 export * from "./jobs.ts";
 export * from "./json.ts";
