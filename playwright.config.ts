@@ -24,5 +24,12 @@ export default defineConfig({
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
   },
-  projects: [{ name: "chromium", use: { browserName: "chromium" } }],
+  // Playwright's bundled headless Chromium exposes no WebGPU adapter (probed
+  // 2026-09-06: headed and the system Chrome do). The GPU spec runs on the
+  // system Chrome, headless, and skips with an annotation where no adapter
+  // exists, as on a CI runner without a GPU.
+  projects: [
+    { name: "chromium", use: { browserName: "chromium" }, testIgnore: /three-gpu/ },
+    { name: "gpu", use: { browserName: "chromium", channel: "chrome" }, testMatch: /three-gpu/ },
+  ],
 });

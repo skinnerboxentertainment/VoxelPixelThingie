@@ -12,8 +12,15 @@ import * as THREE from "three/webgpu";
 import {
   type BitEvent,
   type BitHandle,
+  type BitRecord,
   type Container,
+  defaultLedMap,
+  InProcessPool,
+  type JobAudit,
   type JsonObject,
+  jobsOf,
+  ledFrame,
+  MemoryStorage,
   MemoryStore,
   OpfsStore,
   OpfsWorkerStore,
@@ -28,7 +35,14 @@ import {
   SceneSink,
   signsOf,
   TeeSink,
+  WORKLOADS,
 } from "../../src/index.ts";
+import {
+  createGpuFrames,
+  firstDifference,
+  type GpuFrames,
+  gpuLedFrameWorkload,
+} from "../shared/gpu-jobs.ts";
 import { LedBridgeSink } from "../shared/led-bridge.ts";
 import { COLORS, referenceScene, sceneCenter } from "../shared/scene.ts";
 
@@ -273,6 +287,95 @@ function tick(): void {
   document.body.dataset.ready = "1";
 }
 
+// ---------------------------------------------------------------- local compute (Phase 13)
+
+let gpu: GpuFrames | undefined;
+let gpuError = "";
+let gpuMs: number | undefined;
+let gpuBits = 0;
+const jobStorage = new MemoryStorage();
+const jobAuditBox = document.getElementById("job-audit")!;
+
+/** Every present bit's LED frame in one dispatch; the number goes to the HUD. */
+async function gpuAllFrames(): Promise<void> {
+  if (!gpu) return;
+  const records = [...grid.bits()].map((b) => b.record());
+  const { ms } = await gpu.run(records);
+  gpuMs = ms;
+  gpuBits = records.length;
+  updateHud();
+}
+
+function jobPool(): InProcessPool {
+  return new InProcessPool(grid, {
+    storage: jobStorage,
+    name: "actor:browser",
+    history: () => recorder?.events ?? [],
+    workloads: { ...WORKLOADS, "led-frame-gpu": gpuLedFrameWorkload(() => gpu) },
+  });
+}
+
+async function runJob(
+  kind: string,
+): Promise<{ audit: JobAudit; seqs: number[]; cid?: string } | undefined> {
+  if (!selected) return undefined;
+  const id = `job-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  const audit = await jobPool().actor(selected.id).run({ id, kind });
+  const job = jobsOf((recorder?.events ?? []).filter((e) => e.bit === selected!.id)).find(
+    (j) => j.id === id,
+  );
+  jobAuditBox.textContent = `${kind}: ${audit.passed ? "audit passed" : "audit FAILED"}, ${audit.check}${audit.detail ? ` (${audit.detail})` : ""}`;
+  return { audit, seqs: job?.seqs ?? [], ...(job?.result?.cid ? { cid: job.result.cid } : {}) };
+}
+
+document.getElementById("run-job")!.addEventListener("click", () => {
+  const kind = (document.getElementById("job-kind") as HTMLSelectElement).value;
+  void runJob(kind);
+});
+
+/** Random records through both paths; the count of frames that differ. */
+async function gpuCheck(n: number): Promise<{ mismatches: number; first?: string; ms: number }> {
+  if (!gpu) return { mismatches: -1, first: "no WebGPU", ms: 0 };
+  const lights = [undefined, 0, 0.1, 0.3, 0.5, 0.6, 0.75, 1, 1.5, -0.5];
+  const records: BitRecord[] = [];
+  for (let i = 0; i < n; i++) {
+    const emissions = Array.from({ length: 26 }, () => {
+      const kind = Math.random();
+      if (kind < 0.1) return {};
+      if (kind < 0.2) return { data: { n: i } };
+      const color = Math.random() < 0.15 ? undefined : Math.floor(Math.random() * 0x1000000);
+      const light = lights[Math.floor(Math.random() * lights.length)];
+      return {
+        ...(color !== undefined ? { color } : {}),
+        ...(light !== undefined ? { light } : {}),
+      };
+    });
+    records.push({
+      id: `r${i}`,
+      position: [i, 0, 0],
+      present: Math.random() < 0.9,
+      color: Math.floor(Math.random() * 0x1000000),
+      passport: {},
+      emissions,
+      links: [],
+      renderCycle: true,
+      renderEnabled: [],
+    });
+  }
+  const map = defaultLedMap();
+  const { frames, ms } = await gpu.run(records, map);
+  let mismatches = 0;
+  let first: string | undefined;
+  records.forEach((rec, i) => {
+    const d = firstDifference(frames[i]!, ledFrame(rec, map));
+    if (d >= 0) {
+      mismatches++;
+      first ??= `record ${i} byte ${d}: gpu ${frames[i]![d]} cpu ${ledFrame(rec, map)[d]} light ${JSON.stringify(rec.emissions[Math.floor(d / 3) < 24 ? Math.floor(d / 12) : 0])}`;
+    }
+  });
+  return { mismatches, ...(first ? { first } : {}), ms };
+}
+
 function updateHud(): void {
   const fs = frameStats();
   hud.textContent = [
@@ -286,6 +389,7 @@ function updateHud(): void {
     `nodes    ${lastCounts.nodes} of ${grid.size * 26}`,
     `frame    p50 ${fs.p50.toFixed(1)} ms  p95 ${fs.p95.toFixed(1)} ms  n=${fs.n}`,
     `model    ${modelMs.toFixed(1)} ms last camera pass`,
+    `gpu      ${gpu ? (gpuMs === undefined ? "ready" : `${gpuMs.toFixed(1)} ms for ${gpuBits} LED frames`) : "no WebGPU"}`,
   ].join("\n");
 }
 
@@ -518,6 +622,7 @@ function loadSize(n: number): void {
   frameTimes.length = 0;
   lastFrame = performance.now();
   if (!renderer) updateModel();
+  void gpuAllFrames();
 }
 
 sizeSelect.addEventListener("change", () => loadSize(Number(sizeSelect.value)));
@@ -581,6 +686,14 @@ resetButton.addEventListener("click", () => loadSize(size));
   ledTarget: () => ledBridge?.target,
   ledPosts: () => ledBridge?.posts ?? -1,
   ledError: () => ledBridge?.lastError ?? "",
+  gpuInfo: () => ({ available: gpu !== undefined, error: gpuError, ms: gpuMs, bits: gpuBits }),
+  gpuCheck: (n: number) => gpuCheck(n),
+  gpuAllFrames: async () => {
+    await gpuAllFrames();
+    return { ms: gpuMs, bits: gpuBits };
+  },
+  runJob: (kind: string) => runJob(kind),
+  jobRecords: (id: string) => jobsOf((recorder?.events ?? []).filter((e) => e.bit === id)),
   eventCount: () => recorder?.events.length ?? -1,
   lastEvent: (): BitEvent | undefined => recorder?.events[recorder.events.length - 1],
 };
@@ -590,6 +703,13 @@ resetButton.addEventListener("click", () => loadSize(size));
 frameScene();
 updateModel();
 updateHud();
+// The kernel is built before the renderer so it is settled by the time the page says ready.
+gpu = await createGpuFrames().catch((err: Error) => {
+  gpuError = err.message;
+  return undefined;
+});
+if (!gpu && !gpuError) gpuError = "no WebGPU adapter";
 await initRenderer();
+await gpuAllFrames();
 if (new URLSearchParams(location.search).get("autosave") === "1") await setAutosave(true);
 if (!renderer) document.body.dataset.ready = "1";
