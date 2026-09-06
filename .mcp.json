@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "vpb-scene": {
+      "command": "node",
+      "args": ["--experimental-strip-types", "scripts/mcp-server.ts"]
+    }
+  }
+}

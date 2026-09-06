@@ -28,6 +28,7 @@
     "scene:sign": "node --experimental-strip-types scripts/sign-scene.ts",
     "key:gen": "node --experimental-strip-types scripts/keygen.ts",
     "job:drive": "node --experimental-strip-types scripts/job-drive.ts",
+    "mcp": "node --experimental-strip-types scripts/mcp-server.ts",
     "led:drive": "node --experimental-strip-types scripts/led-drive.ts",
     "led:sim": "node --experimental-strip-types scripts/wled-sim.ts",
     "test": "node --experimental-strip-types --test \"tests/**/*.test.ts\"",
@@ -63,7 +64,9 @@
     "*.{ts,js,json}": "biome check --write --no-errors-on-unmatched"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "pixi.js": "^8.20.1",
-    "three": "^0.185.1"
+    "three": "^0.185.1",
+    "zod": "^3.25.76"
   }
 }
