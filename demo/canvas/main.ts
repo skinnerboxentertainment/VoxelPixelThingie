@@ -8,7 +8,7 @@ import {
   type BitHandle,
   EDGE_SLOTS,
   FACE_SLOTS,
-  type Grid,
+  type FlatGrid,
   localCenterOf,
   nodeVertices,
   type RenderItem,
@@ -33,7 +33,7 @@ const ctx = canvas.getContext("2d")!;
 const hud = document.getElementById("hud")!;
 const buttons = [...document.querySelectorAll<HTMLButtonElement>("button[data-mode]")];
 
-const grid: Grid = referenceScene();
+const grid: FlatGrid = referenceScene();
 const target = sceneCenter();
 let view: View = viewForMode("cube", target);
 let lastPick: { bit: BitHandle; polys: { pts: { x: number; y: number }[] }[] }[] = [];

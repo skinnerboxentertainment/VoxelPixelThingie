@@ -9,7 +9,7 @@ import { Application, BlurFilter, Graphics } from "pixi.js";
 import {
   type BitHandle,
   EDGE_SLOTS,
-  Grid,
+  FlatGrid,
   localCenterOf,
   nodeVertices,
   type RenderItem,
@@ -33,8 +33,8 @@ const H = 16;
 const BACK_FACE = 0x0f3a7a;
 
 /** Front layer at z = 0 with a carved pattern; back layer at z = -1, darker. */
-function layerScene(): Grid {
-  const grid = new Grid();
+function layerScene(): FlatGrid {
+  const grid = new FlatGrid();
   const carved = new Set<string>();
   // A 4x4 window and a diagonal stroke, so depth shows through in two shapes.
   for (let y = 6; y < 10; y++) for (let x = 6; x < 10; x++) carved.add(`${x},${y}`);

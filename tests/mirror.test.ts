@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { Grid } from "../src/grid.ts";
+
+const gridFactory = (o?: ConstructorParameters<typeof Grid>[0]) => new Grid(o);
+
 import { ledgerPath, openScene, passportPath, readManifest, SceneSink } from "../src/scene.ts";
 import { EDGE_SLOTS } from "../src/slots.ts";
 import { MemoryStore } from "../src/store.ts";
@@ -40,8 +43,8 @@ test("a scene opened over a URL equals the local scene: same digest", async () =
   const live = await seed(store);
   await sealScene(store);
   const remote = new FetchStore("https://example.test/scene", fetchFor(store));
-  const viaUrl = await openScene(remote);
-  const local = await openScene(store);
+  const viaUrl = await openScene(remote, { factory: gridFactory });
+  const local = await openScene(store, { factory: gridFactory });
   const [a, b, c] = await Promise.all([sceneDigest(live), sceneDigest(local), sceneDigest(viaUrl)]);
   assert.equal(a, b);
   assert.equal(b, c);
@@ -103,7 +106,7 @@ test("writing after sealing drops the stale hashes", async () => {
   await seed(store);
   await sealScene(store);
   const sink = await SceneSink.resume(store);
-  const g = await openScene(store, { attach: sink });
+  const g = await openScene(store, { attach: sink, factory: gridFactory });
   g.at(0, 0, 1)!.annotate("k", 1);
   await sink.flush();
   assert.equal((await readManifest(store))!.hashes, undefined);

@@ -3,6 +3,9 @@ import { test } from "node:test";
 import { compact, compactLedger } from "../src/compact.ts";
 import type { BitEvent } from "../src/events.ts";
 import { Grid } from "../src/grid.ts";
+
+const gridFactory = (o?: ConstructorParameters<typeof Grid>[0]) => new Grid(o);
+
 import { ledgerPath, openScene, parseLedger, readManifest, SceneSink } from "../src/scene.ts";
 import { EDGE_SLOTS, VERTEX_SLOTS } from "../src/slots.ts";
 import { MemoryStore } from "../src/store.ts";
@@ -59,7 +62,7 @@ async function buildScene(store: MemoryStore): Promise<Grid> {
 test("oracle: compact with tail 8, openScene, snapshot equals the uncompacted import", async () => {
   const store = new MemoryStore();
   const live = await buildScene(store);
-  const full = await openScene(store);
+  const full = await openScene(store, { factory: gridFactory });
 
   const report = await compact(store, { tail: 8, now: () => 5 });
   assert.ok(report.dropped > 0);
@@ -74,7 +77,7 @@ test("oracle: compact with tail 8, openScene, snapshot equals the uncompacted im
   assert.ok(lines.length <= 8, `ledger has ${lines.length} lines`);
   assert.ok(lines.every((e) => e.type !== "linked" && e.type !== "unlinked"));
 
-  const back = await openScene(store);
+  const back = await openScene(store, { factory: gridFactory });
   assert.equal(back.id, live.id);
   assert.deepEqual(snapshot(back), snapshot(full));
   assert.deepEqual(snapshot(back), snapshot(live));
@@ -102,7 +105,7 @@ test("compaction after the passport: a tail beyond the snapshot is applied on op
     frame: live.id,
   };
   await store.append(ledgerPath(target.id), `${JSON.stringify(extra)}\n`);
-  const back = await openScene(store);
+  const back = await openScene(store, { factory: gridFactory });
   assert.deepEqual(back.get(target.id)!.node(0).emission, { color: 0x123456 });
   assert.deepEqual(
     back.get(target.id)!.passport,

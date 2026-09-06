@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { compact } from "../src/compact.ts";
 import { Grid } from "../src/grid.ts";
+
+const gridFactory = (o?: ConstructorParameters<typeof Grid>[0]) => new Grid(o);
+
 import { ledgerPath, openScene, parseLedger, readManifest, SceneSink } from "../src/scene.ts";
 import { EDGE_SLOTS, VERTEX_SLOTS } from "../src/slots.ts";
 import { MemoryStore } from "../src/store.ts";
@@ -50,7 +53,7 @@ test("oracle: resume, carve two more, flush, reopen: equal, no duplicate lines, 
   const linesBefore = (await allSeqs(store)).length;
 
   const sink = await SceneSink.resume(store);
-  const g = await openScene(store, { attach: sink });
+  const g = await openScene(store, { attach: sink, factory: gridFactory });
   assert.equal((await allSeqs(store)).length, linesBefore, "opening wrote nothing");
 
   g.wrangle({ actor: "test", cause: "carve two more" }, () => {
@@ -73,7 +76,7 @@ test("oracle: resume, carve two more, flush, reopen: equal, no duplicate lines, 
   assert.equal(m1.bits, 64);
   assert.deepEqual(m1.ids?.length, 64);
 
-  const again = await openScene(store);
+  const again = await openScene(store, { factory: gridFactory });
   assert.deepEqual(snapshot(again), snapshot(g));
   assert.equal(again.get(g.at(0, 0, 0)!.id)!.passport.resumed, true);
   assert.equal(again.at(1, 1, 1)!.present, false);
@@ -84,11 +87,11 @@ test("resume after compaction: projection comes from passports plus the tail", a
   const live = await seed(store);
   await compact(store, { tail: 2 });
   const sink = await SceneSink.resume(store);
-  const g = await openScene(store, { attach: sink });
+  const g = await openScene(store, { attach: sink, factory: gridFactory });
   assert.deepEqual(snapshot(g), snapshot(live));
   g.at(3, 3, 3)!.setPassport({ seeded: true, more: 1 });
   await sink.flush();
-  const again = await openScene(store);
+  const again = await openScene(store, { factory: gridFactory });
   assert.deepEqual(again.at(3, 3, 3)!.passport, { seeded: true, more: 1 });
   assert.equal(
     (await readManifest(store))!.compacted,
@@ -102,7 +105,7 @@ test("attach without resume: a fresh sink after replay records only new events",
   await seed(store);
   const other = new MemoryStore();
   const fresh = new SceneSink(other);
-  const g = await openScene(store, { attach: fresh });
+  const g = await openScene(store, { attach: fresh, factory: gridFactory });
   await fresh.flush();
   assert.equal((await other.list("bits")).length, 0, "nothing replayed into the fresh sink");
   g.at(0, 0, 0)!.annotate("k", 1);

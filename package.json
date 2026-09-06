@@ -6,6 +6,7 @@
   "description": "VoxelPixelBit core model. See SPEC.md.",
   "scripts": {
     "bench": "node --experimental-strip-types bench/evaluate.bench.ts",
+    "bench:containers": "node --experimental-strip-types --expose-gc --max-old-space-size=8192 bench/containers.bench.ts",
     "bench:frame": "node bench/frame-budget.mjs",
     "bench:memory": "node --experimental-strip-types --expose-gc --max-old-space-size=8192 bench/memory.bench.ts",
     "build": "vite build",

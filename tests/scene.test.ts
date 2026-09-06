@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { Grid } from "../src/grid.ts";
+
+const gridFactory = (o?: ConstructorParameters<typeof Grid>[0]) => new Grid(o);
+
 import {
   ledgerPath,
   openScene,
@@ -72,7 +75,7 @@ async function buildScene(store: FileStore): Promise<{ live: Grid; sink: SceneSi
 test("round trip through a MemoryStore reproduces every bit and every render flag", async () => {
   const store = new MemoryStore();
   const { live } = await buildScene(store);
-  const back = await openScene(store);
+  const back = await openScene(store, { factory: gridFactory });
   assert.equal(back.id, live.id, "same frame");
   assert.equal(back.size, live.size);
   assert.deepEqual(snapshot(back), snapshot(live));
@@ -101,7 +104,7 @@ test("round trip through a real folder, with the SPEC 10 layout and write orderi
   const dp = JSON.parse((await store.read(passportPath(destroyed)))!) as PassportFile;
   assert.equal(dp.destroyed, true);
 
-  const back = await openScene(store);
+  const back = await openScene(store, { factory: gridFactory });
   assert.deepEqual(snapshot(back), snapshot(live));
   assert.deepEqual(flags(back), flags(live));
   await fs.rm(dir, { recursive: true, force: true });
@@ -123,7 +126,7 @@ test("a torn last line is discarded and the bit is at its previous seq", async (
     frame: live.id,
   }).slice(0, 40);
   await store.append(ledgerPath(victim.id), half);
-  const back = await openScene(store);
+  const back = await openScene(store, { factory: gridFactory });
   const after = snapshot(back).find((s) => s.id === victim.id)!;
   assert.deepEqual(after, before, "the torn event had no effect");
 });

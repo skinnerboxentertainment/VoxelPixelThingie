@@ -2,7 +2,7 @@
  * The reference scene every demo renders: an 8x8x8 with a 3x3x3 corner
  * carved out, faces blue, seams lighter blue, corner beads white.
  */
-import { EDGE_SLOTS, type EventSink, Grid, VERTEX_SLOTS } from "../../src/index.ts";
+import { EDGE_SLOTS, type EventSink, FlatGrid, VERTEX_SLOTS } from "../../src/index.ts";
 
 export const COLORS = {
   face: 0x1f6feb,
@@ -13,8 +13,8 @@ export const COLORS = {
 
 export const SCENE_SIZE = 8;
 
-export function referenceScene(size = SCENE_SIZE, sink?: EventSink): Grid {
-  const grid = Grid.fill(size, size, size, {
+export function referenceScene(size = SCENE_SIZE, sink?: EventSink): FlatGrid {
+  const grid = FlatGrid.fill(size, size, size, {
     emission: { color: COLORS.face, light: 0.6 },
     ...(sink ? { sink } : {}),
   });

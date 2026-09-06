@@ -7,7 +7,7 @@
  */
 
 import type { Container, ContainerOptions } from "./container.ts";
-import { Grid } from "./grid.ts";
+import { FlatGrid } from "./flat-grid.ts";
 import type { JsonObject } from "./json.ts";
 import type { Offset, Slot } from "./slots.ts";
 import type { Emission, Vec3 } from "./vpb.ts";
@@ -63,17 +63,17 @@ export class RecordingSink implements EventSink {
  * the container's, so replayed events carry the original frame. Replayed
  * events are stamped actor "replay" and keep the original cause.
  */
-export interface ReplayOptions<C extends Container = Grid> extends ContainerOptions {
-  /** Which container to rebuild into. Default: the reference Grid. */
+export interface ReplayOptions<C extends Container = FlatGrid> extends ContainerOptions {
+  /** Which container to rebuild into. Default: FlatGrid (ADR 0007). */
   factory?: (opts?: ContainerOptions) => C;
 }
 
-export function replay<C extends Container = Grid>(
+export function replay<C extends Container = FlatGrid>(
   events: Iterable<BitEvent>,
   opts: ReplayOptions<C> = {},
 ): C {
   const { factory, ...rest } = opts;
-  const make = factory ?? ((o?: ContainerOptions) => new Grid(o) as unknown as C);
+  const make = factory ?? ((o?: ContainerOptions) => new FlatGrid(o) as unknown as C);
   const ordered = [...events].sort((a, b) => a.seq - b.seq);
   const frame = rest.id ?? ordered[0]?.frame;
   const grid = make(frame ? { ...rest, id: frame } : rest);
