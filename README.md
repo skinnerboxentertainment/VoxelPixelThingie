@@ -92,6 +92,8 @@ A published scene lives at
 - [docs/spime-research.md](docs/spime-research.md): the spime framing
   checked against its source and against the standards that made it real,
   with the v0.4 amendments it implies.
+- [PUNCHLIST.md](PUNCHLIST.md): what would make the bit more durable,
+  accessible, and capable next, each with the check that shows it done.
 - [docs/research/](docs/research/): field surveys before a track is planned;
   first, attaching compute and storage to a bit.
 - [docs/adr/](docs/adr/): why the decisions were made.
