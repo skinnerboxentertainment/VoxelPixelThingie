@@ -10,21 +10,7 @@ import dgram from "node:dgram";
 import { expect, type Page, test } from "@playwright/test";
 import { startBridge } from "../../scripts/led-bridge.ts";
 import { decodeDdp, ledRangeOf } from "../../src/ddp.ts";
-
-type Hook = {
-  ledTarget(): string | undefined;
-  ledPosts(): number;
-  ledError(): string;
-  selectBit(id: string): boolean;
-  setPassportOnSelected(obj: unknown): boolean;
-};
-
-const hook = <T>(page: Page, fn: (h: Hook) => T): Promise<T> =>
-  page.evaluate(
-    (src: string) =>
-      new Function("h", `return (${src})(h)`)((window as unknown as { __vpb: Hook }).__vpb) as T,
-    fn.toString(),
-  );
+import { changePassport, hook, openMirroredDemo } from "./led-page.ts";
 
 test("a hundred changes to the mirrored bit reach the display as DDP; carving it sends a dark frame", async ({
   page,
@@ -40,22 +26,11 @@ test("a hundred changes to the mirrored bit reach the display as DDP; carving it
     listen: 0,
   });
   try {
-    await page.goto(`/three/?led=${encodeURIComponent(bridge.url)}&bit=first`);
-    await page.waitForSelector("body[data-ready='1']", { timeout: 60_000 });
-    const target = await hook(page, (h) => h.ledTarget());
-    expect(target).toMatch(/^[0-9a-f-]{36}$/);
+    await openMirroredDemo(page, bridge.url);
     // The fill already posted the bit's creation and its emissions.
     await expect.poll(() => bridge.samples.length, { timeout: 15_000 }).toBeGreaterThan(0);
     const seeded = bridge.samples.length;
-    expect(await hook(page, (h) => h.selectBit(h.ledTarget()!))).toBe(true);
-
-    for (let i = 0; i < 100; i++) {
-      const ok = await page.evaluate(
-        (n) => (window as unknown as { __vpb: Hook }).__vpb.setPassportOnSelected({ n }),
-        i,
-      );
-      expect(ok).toBe(true);
-    }
+    await changePassport(page, 100);
     await expect.poll(() => bridge.samples.length, { timeout: 30_000 }).toBe(seeded + 100);
     expect(await hook(page, (h) => h.ledError())).toBe("");
     const lit = decodeDdp(packets[packets.length - 1]!);
