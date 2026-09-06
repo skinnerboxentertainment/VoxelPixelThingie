@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/skinnerboxentertainment/VoxelPixelThingie/compare/v0.2.0...v0.3.0) (2026-09-06)
+
+
+### Features
+
+* packed scene format, packed store, pack and pin scripts ([#53](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/53)) ([6d51366](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/6d51366e5109478fa0a0ad7a6d4fc90f2f26090c))
+
 ## [0.2.0](https://github.com/skinnerboxentertainment/VoxelPixelThingie/compare/v0.1.0...v0.2.0) (2026-09-06)
 
 
