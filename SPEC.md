@@ -1,6 +1,6 @@
 # VoxelPixelThingie — Core Model Specification
 
-Status: Draft v0.7
+Status: Draft v0.8
 Date: 2026-09-06
 Author: Oscar
 
@@ -441,6 +441,30 @@ are absent. Replay stamps `actor: "replay"` and copies the original
 `cause`. Nested contexts replace, and restore on exit. The context is a
 convenience for honest logs, not a security boundary.
 
+### 9.7 Work
+
+A bit can be asked for work, and the work becomes part of its history
+(ADR 0010). Nothing is added to the event set: a job is three `annotated`
+events under reserved keys sharing an `id`, and a reference sink refuses a
+malformed one.
+
+- `job:request`: `{ id, kind, params?, where? }`. What was asked and where
+  the requester wanted it run.
+- `job:result`: `{ id, ms, worker?, value? | cid?, bytes? }`. A small result
+  inline as JSON; a large one stored by content id (a CIDv1, raw codec,
+  SHA-256) with the id in the record. The passport limit of §9.5 applies to
+  the record, not to what the id names.
+- `job:audit`: `{ id, check, passed, detail? }`. The check in words a
+  stranger can repeat, and whether it passed. A workload that throws is an
+  audit that failed, not a job that vanished.
+- `job:reward`, optional: `{ id, note? }`. Written only after an audit that
+  passed. What a reward means is the wrangler's business.
+
+The order is request, result, audit, reward. An actor that runs work
+writes them under a wrangler context whose `actor` names it (§9.6), so
+the ledger records who did the work as it records who carved a bit.
+Nothing in the render path reads job records.
+
 ## 10. Persistence
 
 A spime's data trail must be able to leave the process. This section fixes
@@ -625,3 +649,4 @@ same camera. That equality, across a round trip through any store, is what
 | 2026-09-06 | A container contract (BitHandle, Container) and a conformance suite. FlatGrid over typed arrays with derived link masks is the default container; Grid is the reference. Containers that derive links may omit link events (§7). ADR 0007. |
 | 2026-09-06 | A physical bit shows emissions, not the culled list, and carries its LED map in its passport under `ledMap`; DDP to WLED is the wire (§8.6, §9.5, ADR 0009). |
 | 2026-09-06 | A container may hold an Ed25519 key and a `did:web`; the seal is signed with it and a reader who resolves the DID verifies the signature, so the spime test no longer needs to trust the store (§10.3, §10.9, PLAN-3 Phase 11). |
+| 2026-09-06 | Work is three annotations under reserved keys, request then result then audit, with an optional reward after a passed audit; large results are stored by content id (§9.7, ADR 0010). |
