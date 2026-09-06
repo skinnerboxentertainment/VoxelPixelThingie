@@ -64,6 +64,17 @@ slot geometry so shared edges and corners agree by construction). The
 driver, the bridge, and the Three.js demo are developed against it as if
 it were the device.
 
+**It is a digital twin, in the original sense.** The term was coined for a
+full model of a spacecraft, tested against before the hardware existed
+and fed the hardware's real data afterward (docs/research/compute-
+attachment.md, the Radoff space episode). That is what
+`scripts/wled-sim.ts` is for the physical bit: the same DDP the strip
+will receive, the same rules the strip's firmware applies, measured
+before first light. The Phase 10 journal's numbers are the twin's
+numbers: click→terminal-write p50 9.0 ms, p95 17.0 ms over 103 frames.
+When the strip arrives it inherits the twin's ledger, not the other way
+round.
+
 Two limits are part of the decision. It is not hardware: no Wi-Fi jitter,
 strip timing, color order, or power, so it does not claim the oracles on
 #72 and #73. And the latency it can stamp ends when a frame's bytes are
