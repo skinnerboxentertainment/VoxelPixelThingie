@@ -8,9 +8,10 @@ Bruce Sterling coined "spime" in *Shaping Things* (2005) for an object
 whose data trail is its primary existence: unique identity, a knowable
 history from design through disposal, and membership in a network of
 information. Physical instances are temporary expressions of the spime.
-Sterling's ladder runs artifact, machine, product, gadget, spime, and the
-people who manage spimes are wranglers. This account is Trusted from prior
-reading, not re-verified today.
+Sterling's ladder runs artifact, machine, product, gizmo, spime, and the
+people who manage spimes are wranglers. Verified against published
+summaries of the book on 2026-09-06; see docs/spime-research.md. An
+earlier revision of this ADR wrote "gadget" for the fourth rung.
 
 A VoxelPixelBit already sits above "gadget." It is networked through
 explicit links, its 26 parts are addressable, and every part emits

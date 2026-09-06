@@ -54,6 +54,9 @@ Other commands: `npm run typecheck`, `npm run lint`, `npm run test:coverage`,
   Unreal, and the 2D / 2.5D / 3D matrix.
 - [REPOS.md](REPOS.md): libraries worth integrating or borrowing from.
 - [PLAN.md](PLAN.md): the stand-up and demo plan, with the demo script.
+- [docs/spime-research.md](docs/spime-research.md): the spime framing
+  checked against its source and against the standards that made it real,
+  with the v0.4 amendments it implies.
 - [docs/adr/](docs/adr/): why the decisions were made.
 - [docs/journal/](docs/journal/): what happened each phase, with the
   numbers.
