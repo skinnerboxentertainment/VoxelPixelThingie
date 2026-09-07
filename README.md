@@ -118,6 +118,9 @@ A published scene lives at
 - [conformance/](conformance/RUNNING.md): the rules for a correct bit as
   fixtures any language can read, with a Python implementation under
   `kit/python` that passes tiers 1 and 2.
+- [PUNCHLIST-2.md](PUNCHLIST-2.md): the second request from a thousand
+  years out, sent after PLAN-4 was built: self-describing formats,
+  renewing witnesses, signature agility, and seven more.
 - [PUNCHLIST.md](PUNCHLIST.md): what would make the bit more durable,
   accessible, and capable next, each with the check that shows it done.
 - [docs/research/](docs/research/): field surveys before a track is planned;
