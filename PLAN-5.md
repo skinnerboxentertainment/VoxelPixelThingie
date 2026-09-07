@@ -44,10 +44,15 @@ Bytecode Alliance's, both open source with more than one maintainer
   `FACING_EPSILON = 1e-4` [V: `src/vpb.ts`, `src/flat-grid.ts`], which
   WebAssembly evaluates identically on every host [T: the core
   specification's IEEE 754 semantics; no transcendental instructions].
-- This machine has no Rust toolchain, no wasm target, no
-  `cargo-component`, no `wasm-tools`, and no `wasmtime-py` [V: probed
-  2026-09-06]; Node 22 has `WebAssembly` [V]. Installing them is a
-  Decision below.
+- The toolchain is installed and proven on this machine, with Oscar's
+  go-ahead on 2026-09-06 [V]: rustup 1.29.1, cargo 1.98.1 on the MSVC
+  host (Visual Studio 2022 Community's C++ tools were already present),
+  targets `wasm32-unknown-unknown` and `wasm32-wasip2`, wasmtime-py
+  48.0.0; `wasm-tools` and `cargo-component` were being built from
+  source at the time of writing. A smoke crate at `core/` with `sha2`
+  and `ed25519-dalek` compiles natively (tests pass) and to a 36.8 KB
+  module that Node 22 and Python both load and call with the same
+  result [V].
 - Hosts exist in the field: browsers run core modules and jco transpiles
   components for them [V: Bytecode Alliance docs, read 2026-09-06];
   wasmtime-py supports components [V: same day]; WASI 0.3 shipped in
@@ -299,18 +304,20 @@ previous phase measured.
 
 Each in plain words, then the tech line.
 
-- **Install the toolchain on this machine.** Rust, the WebAssembly
-  target, the component tooling, and the Python runtime, none of which
-  is present today. *Tech: `rustup` with `wasm32-unknown-unknown` and
+- **Install the toolchain on this machine.** Decided and done on
+  2026-09-06: rustup with both wasm targets, wasmtime-py, and the
+  component tools. *Tech: `rustup` with `wasm32-unknown-unknown` and
   `wasm32-wasip2`, `cargo-component`, `wasm-tools`, `pip install
-  wasmtime`.* CI can install its own; local work cannot start without
-  yours.
+  wasmtime`.* CI installs its own in the `core` job.
+- **Kickoff.** Oscar approves the start of the development cycle after
+  this plan's final check; no Phase 27 ticket is cut before that.
 - **Which libraries the core may depend on.** The plan proposes
-  `serde_json`, `sha2`, and `ed25519-dalek`, all open source from
-  projects with many maintainers; the alternative is to write SHA-256
-  and Ed25519 by hand as the Python kit did, at the cost of a week and
-  more surface to audit. *Tech: a `Cargo.lock` pinned and its hashes in
-  the release manifest either way.*
+  `serde_json`, `sha2`, `ed25519-dalek`, and `base64`, all open source
+  from projects with many maintainers; the alternative is to write
+  SHA-256 and Ed25519 by hand as the Python kit did, at the cost of a
+  week and more surface to audit. The smoke build proved the first three
+  compile to the wasm target [V]. *Tech: a `Cargo.lock` pinned and its
+  hashes in the release manifest either way.*
 - **The size budget.** Proposed 400 KB for the optimized module, the
   number that decides whether a pack can carry its core without doubling
   the reference scene's reader.
