@@ -18,6 +18,11 @@ names the check that would show it done.
 | 8 | **Delegation.** A controller signs a capability for an agent: what it may do, on which bits, with what limits, until when; the sink checks it like a policy. | An agent with a capability acts within its limits; expired or over-limit is refused with the record; the capability's signature is checked against the controller's key. | M |
 | 9 | **Audits that sign.** The actor countersigns every audit with its own key; a reward is refused unless the audit's signature verifies. | A forged audit yields no reward; the ledger shows the refusal; the durable and in-process pools both do it. | S |
 | 10 | **Rules from senses.** A bit reacts to its own readings by rules in its passport (threshold, then emission), recorded as events whose cause names the rule. | The twin's temperature crosses a threshold; the bit's emission changes; the ledger's cause is `rule:<id>`; the policy can forbid rules. | M |
+| 11 | **Programs the bit carries.** A bit keeps a sealed WebAssembly program by content id and asks for it to be run in a box that can only compute; result, audit, and the program's hash land in the ledger; policy gates it, default off. | A module stored by CID runs as a job with all four records; a second run agrees with the first or the audit fails; a policy without `program` refuses it; a runaway module is stopped by its budget with the audit saying so; a program that acts on another bit is refused. | M |
+| 12 | **The swarm.** Many bits run their programs in rounds, each seeing only itself and what its neighbors say, applied in step so order never matters. | The same program on every bit of the reference scene gives the same digest after 20 rounds in three hosts and in a shuffled visiting order; every op is in the ledger under the program's hash; a bit that forbids programs stays still; no round runs unrequested. | L |
+
+Items 11 and 12 were added the same evening at Oscar's request and are
+planned in PLAN-5.md with item 6.
 
 Not on the list, by rule: any single vendor, any token of our own, any
 service that needs an account to test, and value, which waits on the
