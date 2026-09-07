@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.4.0](https://github.com/skinnerboxentertainment/VoxelPixelThingie/compare/v0.3.0...v0.4.0) (2026-09-07)
+
+
+### Features
+
+* a docker container as a body for the actor, kill-and-restart through docker ([#98](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/98)) ([c9e973b](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/c9e973bec08a0c0853e4d856564f347b074394d6))
+* a policy in the passport, judged at the sink before the container applies ([#110](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/110)) ([30fac2f](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/30fac2f54a922e93118691fe0d54c75bfd693037))
+* conformance kit as fixtures, a python implementation for tiers 1 and 2, the state digest ([#125](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/125)) ([ca5a845](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/ca5a845ab901f4ff47bbd441b7c97476d11b3859))
+* container contract and conformance suite over the reference grid ([#60](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/60)) ([6ee8be6](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/6ee8be6ad9d4fd02ffec22e465910dbfd6a6058c))
+* container keys, did:web documents, and signed seals ([#82](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/82)) ([4cd9efb](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/4cd9efb5efe7011bad34ea754a33ea4a3cb30d97))
+* durable backend behind the actor contract, kill-and-restart exactly once, the twin named ([#96](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/96)) ([65aa2d9](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/65aa2d9a3f46d3a0e7ec3227117cd3650bd57146))
+* epcis 2.0 export sink with the vendored schema and context ([#70](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/70)) ([da9d9f0](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/da9d9f037ad919701d173035f9834e1b340cab73))
+* flat grid container over typed arrays with derived link masks ([#62](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/62)) ([ab19b72](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/ab19b72a06c04aeaf217ecf6137e5a27e487803f))
+* flat grid is the default container, container benches, spec v0.5, adr 0007 ([#63](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/63)) ([a92f5dd](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/a92f5dd919153dd10bd21898946129e46eeadbd1))
+* gltf export and import, identity in extras, the pack inside, a blender round trip ([#119](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/119)) ([fd1d78f](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/fd1d78f078130c6d9ec2dfeaabee4aca21a27750))
+* keyboard cursor, text view, reduced motion, axe audit in ci, passport page landmarks ([#122](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/122)) ([e6bbed3](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/e6bbed358422b3788c710d59065732dd03e3ee0b))
+* led map, ddp packets, led bridge and driver, passport page with qr ([#74](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/74)) ([8610925](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/86109253a0649fe5fb2e9c3d24a7ced6ee260beb))
+* openepcis capture check, web-uri identifiers, and the vpb extension schema ([#75](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/75)) ([f83f82f](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/f83f82faeb46a6bdd5727259ae9d6b5a626658ae))
+* packed save and load in the three.js demo ([#66](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/66)) ([d90a637](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/d90a637b8abb28da5dadc614d80c88bce1aee3ff))
+* reproducible release manifest, attest and verify, sbom, a ci release-check job ([#116](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/116)) ([4bc35c6](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/4bc35c64fdb2269de3e1c976b97e29b5829adea9))
+* searchable memory, an index over the ledgers with a search tool and workload ([#113](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/113)) ([8f6d988](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/8f6d988c190ecb49a31da66c8c25212ccffdac41))
+* the reader, one file that opens a scene offline and verifies its seal ([#102](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/102)) ([cdb4e2e](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/cdb4e2ea07e57698d650d99a60d767952900e6ab))
+* the scene as an mcp server with docs as resources ([#93](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/93)) ([0ef03c5](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/0ef03c5e5ebcc49360081d20ffb8abe4e9deead4))
+* webgpu led-frame kernel byte-equal to the cpu, browser actor backend, job panel ([#90](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/90)) ([5f4c2e5](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/5f4c2e5e215d20441631ac582bcab2e60d464ff7))
+* witnessed seals, rfc 3161 and notary witnesses, key rotation by chain ([#106](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/106)) ([2473f84](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/2473f84b217147b84d84a6744867cf32250f1448))
+* wled emulator in the terminal, a simulated physical bit ([#77](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/77)) ([65fd8ed](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/65fd8edd44338a688a6f6bcd35da54779b9f28a7))
+* work as audited events, storage by content id, an actor per bit ([#87](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/87)) ([08bc1dd](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/08bc1ddb10d3c963bc4a2b2bf2494af18c41c394))
+* worker-side opfs store, overlay store, and autosave in the three.js demo ([#69](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/69)) ([7281455](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/7281455a6b6044536fe51213e720444e2aa6f31e))
+
+
+### Bug Fixes
+
+* mirror-check keeps its first store without --did-doc; phase 11 journal completed ([#84](https://github.com/skinnerboxentertainment/VoxelPixelThingie/issues/84)) ([480a8b9](https://github.com/skinnerboxentertainment/VoxelPixelThingie/commit/480a8b9a46eb25f1692f00cc82f2a4183d0c0dda))
+
 ## [0.3.0](https://github.com/skinnerboxentertainment/VoxelPixelThingie/compare/v0.2.0...v0.3.0) (2026-09-06)
 
 
