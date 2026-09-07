@@ -5,3 +5,4 @@ release/
 coverage/
 test-results/
 playwright-report/
+core/target/
