@@ -118,6 +118,9 @@ A published scene lives at
 - [conformance/](conformance/RUNNING.md): the rules for a correct bit as
   fixtures any language can read, with a Python implementation under
   `kit/python` that passes tiers 1 and 2.
+- [PLAN-5.md](PLAN-5.md): the fifth program, draft: one core, every host; the
+  model, replay, seal, and self-tests as one WebAssembly module in Rust,
+  passing the conformance kit in the browser, Node, and Python.
 - [PUNCHLIST-2.md](PUNCHLIST-2.md): the second request from a thousand
   years out, sent after PLAN-4 was built: self-describing formats,
   renewing witnesses, signature agility, and seven more.
