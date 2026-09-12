@@ -91,7 +91,7 @@
     "@temporalio/worker": "^1.23.0",
     "@temporalio/workflow": "^1.23.0",
     "pixi.js": "^8.20.1",
-    "three": "^0.185.1",
+    "three": "^0.186.0",
     "zod": "^3.25.76"
   }
 }
