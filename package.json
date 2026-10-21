@@ -85,7 +85,7 @@
     "*.{ts,js,json}": "biome check --write --no-errors-on-unmatched"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@modelcontextprotocol/sdk": "^1.32.0",
     "@temporalio/activity": "^1.23.0",
     "@temporalio/client": "^1.23.0",
     "@temporalio/worker": "^1.23.0",
